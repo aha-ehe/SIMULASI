@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
-import { GameState, GameAction, Component, Server, Rack, Contract, Software, Staff, GameEvent } from "./types";
+import { GameState, GameAction, Component, Server, Rack, Contract, Software, Staff, VpsClient } from "./types";
 
 const GRID_ROWS = 6;
 const GRID_COLS = 6;
@@ -36,19 +36,21 @@ const initialState: GameState = {
   contracts: [],
   staff: [],
   events: [],
+  clients: [],
   time: 0,
 };
 
 function generateRandomContractPerTick(time: number): Contract {
     const computeReq = 20 + Math.floor(Math.random() * 100);
+    const bandwidthReq = 10 + Math.floor(Math.random() * 50); // New bandwidth requirement
     const duration = 120 + Math.floor(Math.random() * 120);
-    const rewardPerTick = Math.ceil(computeReq * 0.5); // E.g. 50 compute -> 25 money/tick
+    const rewardPerTick = Math.ceil(computeReq * 0.5 + bandwidthReq * 0.2);
 
     return {
         id: `cnt-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
         name: `Service Contract #${Math.floor(Math.random() * 1000)}`,
-        description: `Maintain ${computeReq} compute power.`,
-        requirements: { compute: computeReq },
+        description: `Maintain ${computeReq} compute power and ${bandwidthReq} Gbps bandwidth.`,
+        requirements: { compute: computeReq, bandwidth: bandwidthReq },
         reward: rewardPerTick,
         duration: duration,
         progress: 0,
@@ -259,14 +261,20 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Update active contracts
       let revenue = 0;
+      let usedBandwidth = 0;
+
       newContracts = newContracts.map((contract) => {
         if (contract.status === "active") {
           if (contract.progress >= contract.duration) {
               return { ...contract, status: 'completed' };
           }
 
-          if (effectiveCompute >= contract.requirements.compute) {
+          const bandwidthOk = !contract.requirements.bandwidth || (state.resources.bandwidth.max - usedBandwidth >= contract.requirements.bandwidth);
+
+          if (effectiveCompute >= contract.requirements.compute && bandwidthOk) {
             revenue += contract.reward;
+            if (contract.requirements.bandwidth) usedBandwidth += contract.requirements.bandwidth;
+
             return {
               ...contract,
               progress: contract.progress + 1,
@@ -288,6 +296,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const salaries = state.staff.reduce((acc, s) => acc + s.salary, 0);
       expenses += salaries;
 
+      // VPS Revenue
+      const vpsRevenue = state.clients.reduce((acc, c) => acc + c.revenue, 0);
+      revenue += vpsRevenue;
+
       return {
         ...state,
         resources: {
@@ -295,11 +307,42 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           money: state.resources.money + revenue - expenses,
           electricity: { ...state.resources.electricity, current: currentPower },
           heat: { ...state.resources.heat, current: newTemp },
+          bandwidth: { ...state.resources.bandwidth, current: usedBandwidth },
         },
         racks: newRacks,
         contracts: newContracts,
         events: activeEvents,
         time: state.time + 1,
+      };
+    }
+    case "BUY_COMPONENT": {
+      if (state.resources.money < action.component.price) return state;
+      // Special check for ISP upgrade
+      if (action.component.type === 'isp') {
+          return {
+              ...state,
+              resources: {
+                  ...state.resources,
+                  money: state.resources.money - action.component.price,
+                  bandwidth: {
+                      ...state.resources.bandwidth,
+                      max: state.resources.bandwidth.max + action.component.specs.performance
+                  }
+              }
+          };
+      }
+
+      const uniqueComponent = { ...action.component, id: `${action.component.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` };
+      return {
+        ...state,
+        resources: {
+          ...state.resources,
+          money: state.resources.money - action.component.price,
+        },
+        inventory: {
+          ...state.inventory,
+          components: [...state.inventory.components, uniqueComponent],
+        },
       };
     }
     case "HIRE_STAFF": {
@@ -488,6 +531,81 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             return { ...rack, servers: newServers };
         });
         return { ...state, racks: newRacks };
+    }
+    case "PROVISION_VPS": {
+        const tiers = {
+            'basic': { cpu: 1, ram: 1, storage: 10, revenue: 10, name: "Basic VPS Client" },
+            'business': { cpu: 4, ram: 4, storage: 50, revenue: 50, name: "Business VPS Client" },
+            'enterprise': { cpu: 8, ram: 16, storage: 200, revenue: 200, name: "Enterprise VPS Client" }
+        };
+        const tierSpec = tiers[action.tier];
+
+        // Find server
+        let serverFound = false;
+        // Logic to verify capacity would be complex: we need to sum up usage of all clients on this server.
+        // For MVP, we'll just check if server exists and has OS.
+        // Ideally we should track 'available resources' on server.
+        // Let's assume infinite capacity per server for MVP or very loose check?
+        // No, let's implement basic check.
+
+        const currentUsage = state.clients.filter(c => c.serverId === action.serverId).reduce((acc, c) => ({
+            cpu: acc.cpu + c.resourceUsage.cpu,
+            ram: acc.ram + c.resourceUsage.ram,
+            storage: acc.storage + c.resourceUsage.storage
+        }), { cpu: 0, ram: 0, storage: 0 });
+
+        let serverCapacity = { cpu: 0, ram: 0, storage: 0 };
+
+        state.racks.forEach(r => {
+            if (r.type === 'rack') {
+                const s = r.servers.find(srv => srv && srv.id === action.serverId);
+                if (s) {
+                    serverCapacity = {
+                        cpu: s.stats.compute, // Approximation: compute points ~= cpu capacity? No, compute is perf score.
+                        // Real specs are in components.
+                        // Let's use components:
+                        // RAM capacity is in GB.
+                        // Storage capacity is in GB.
+                        // CPU cores?
+                        cpu: s.components.cpu.specs.cores || 0,
+                        ram: s.components.ram.specs.capacity || 0,
+                        storage: s.components.storage.specs.capacity || 0
+                    };
+                    serverFound = true;
+                }
+            }
+        });
+
+        if (!serverFound) return state;
+
+        if (currentUsage.cpu + tierSpec.cpu > serverCapacity.cpu ||
+            currentUsage.ram + tierSpec.ram > serverCapacity.ram ||
+            currentUsage.storage + tierSpec.storage > serverCapacity.storage) {
+                // Not enough resources
+                // In a real app we'd dispatch an error or handle UI validation.
+                return state;
+        }
+
+        const newClient: VpsClient = {
+            id: `cli-${Date.now()}`,
+            name: `${tierSpec.name} #${state.clients.length + 1}`,
+            tier: action.tier,
+            revenue: tierSpec.revenue,
+            serverId: action.serverId,
+            resourceUsage: { cpu: tierSpec.cpu, ram: tierSpec.ram, storage: tierSpec.storage },
+            joinedAt: state.time
+        };
+
+        return {
+            ...state,
+            clients: [...state.clients, newClient]
+        };
+    }
+    case "TERMINATE_VPS": {
+        return {
+            ...state,
+            clients: state.clients.filter(c => c.id !== action.clientId)
+        };
     }
     case "ACCEPT_CONTRACT": {
         const contractIndex = state.contracts.findIndex(c => c.id === action.contractId);

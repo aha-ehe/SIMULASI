@@ -12,6 +12,7 @@ export function Sidebar({ currentView, setView }: SidebarProps) {
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "racks", label: "Data Center", icon: Server },
+    { id: "services", label: "Services", icon: Activity },
     { id: "contracts", label: "Contracts", icon: FileText },
     { id: "staff", label: "Staff", icon: Users },
     { id: "assembly", label: "Assembly", icon: Wrench },

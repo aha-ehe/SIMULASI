@@ -1205,5 +1205,22 @@ export const CATALOG: Component[] = [
       "heat": 50,
       "performance": 30000
     }
+  },
+
+  // ISP Plans (Bandwidth)
+  {
+      id: "isp-basic",
+      name: "Fiber 1Gbps Plan",
+      type: "isp", // New type needs to be added to types.ts or reuse 'utility' if we had one. Let's use 'isp' but treated as component for buying? No, ISP is usually monthly.
+      // For MVP, buying "ISP Plan" component increases max bandwidth permanently (infrastructure upgrade).
+      price: 1000000,
+      specs: { power: 0, heat: 0, performance: 1000 }, // Performance = Bandwidth
+  },
+  {
+      id: "isp-business",
+      name: "Business Fiber 10Gbps",
+      type: "isp",
+      price: 5000000,
+      specs: { power: 0, heat: 0, performance: 10000 },
   }
 ];

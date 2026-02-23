@@ -17,7 +17,7 @@ export interface Resources {
   reputation: number;
 }
 
-export type ComponentType = 'cpu' | 'ram' | 'storage' | 'psu' | 'rack' | 'cooling' | 'ups' | 'generator';
+export type ComponentType = 'cpu' | 'ram' | 'storage' | 'psu' | 'rack' | 'cooling' | 'ups' | 'generator' | 'isp';
 
 export interface ComponentSpecs {
   power: number; // Wattage consumption
@@ -48,7 +48,7 @@ export interface Staff {
 export interface Software {
   id: string;
   name: string;
-  type: 'os' | 'firewall' | 'service';
+  type: 'os' | 'firewall' | 'service' | 'vps';
   price: number;
   diskSpace: number; // GB
   ramUsage: number; // GB
@@ -100,6 +100,7 @@ export interface Contract {
   description: string;
   requirements: {
     compute: number; // Required performance
+    bandwidth?: number; // Required bandwidth
   };
   reward: number; // Money per tick
   duration: number; // Total ticks required
@@ -118,6 +119,20 @@ export interface GameEvent {
     active: boolean;
 }
 
+export interface VpsClient {
+    id: string;
+    name: string;
+    tier: 'basic' | 'business' | 'enterprise';
+    revenue: number; // Income per tick
+    serverId: string; // Hosted on which server
+    resourceUsage: {
+        cpu: number;
+        ram: number;
+        storage: number;
+    };
+    joinedAt: number;
+}
+
 export interface GameState {
   resources: Resources;
   grid: Tile[]; // Track unlocked tiles
@@ -129,6 +144,7 @@ export interface GameState {
   contracts: Contract[];
   staff: Staff[];
   events: GameEvent[];
+  clients: VpsClient[];
   time: number; // Game ticks
 }
 
@@ -141,6 +157,8 @@ export type GameAction =
   | { type: 'PLACE_SERVER'; serverId: string; rackId: string; slotIndex: number }
   | { type: 'INSTALL_SOFTWARE'; serverId: string; software: Software }
   | { type: 'UNINSTALL_SOFTWARE'; serverId: string; softwareId: string }
+  | { type: 'PROVISION_VPS'; serverId: string; tier: 'basic' | 'business' | 'enterprise' }
+  | { type: 'TERMINATE_VPS'; clientId: string }
   | { type: 'HIRE_STAFF'; role: 'technician' | 'manager' | 'security' }
   | { type: 'FIRE_STAFF'; staffId: string }
   | { type: 'ACCEPT_CONTRACT'; contractId: string }

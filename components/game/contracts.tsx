@@ -10,6 +10,17 @@ export function Contracts() {
   const availableContracts = state.contracts.filter(c => c.status === 'available');
   const activeContracts = state.contracts.filter(c => c.status === 'active' || c.status === 'completed');
 
+  // Calculate total compute for validation
+  const totalCompute = state.racks.reduce((acc, item) => {
+      if (item.type !== 'rack') return acc;
+      return acc + item.servers.reduce((sAcc, s) => {
+          if (s && s.status === 'active' && s.health > 0 && s.installedSoftware.some(sw => sw.type === 'os')) {
+              return sAcc + s.stats.compute;
+          }
+          return sAcc;
+      }, 0);
+  }, 0);
+
   return (
     <div className="space-y-8 pb-10">
       <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -34,11 +45,13 @@ export function Contracts() {
                         <div className="flex justify-between items-end text-xs text-slate-500 font-mono">
                             <div>
                                 <div>REQ: {contract.requirements.compute} Compute</div>
+                                {contract.requirements.bandwidth && <div>BW: {contract.requirements.bandwidth} Gbps</div>}
                                 <div>DUR: {contract.duration}s</div>
                             </div>
                             <button
                                 onClick={() => dispatch({ type: 'ACCEPT_CONTRACT', contractId: contract.id })}
-                                className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded font-bold transition-colors cursor-pointer"
+                                disabled={totalCompute < contract.requirements.compute}
+                                className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white px-3 py-1 rounded font-bold transition-colors cursor-pointer"
                             >
                                 Accept
                             </button>

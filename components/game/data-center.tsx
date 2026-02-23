@@ -57,8 +57,13 @@ export function DataCenter() {
          </h2>
 
          <div
-            className="grid gap-2 bg-slate-950 p-8 rounded shadow-2xl relative"
-            style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+            className="grid gap-2 bg-slate-950 p-4 md:p-8 rounded shadow-2xl relative min-w-fit mx-auto"
+            style={{
+                gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                maxWidth: '100%',
+                overflow: 'auto',
+                touchAction: 'pan-x pan-y'
+            }}
          >
             {sortedGrid.map((tile) => {
                 const item = getRackAt(tile.x, tile.y);

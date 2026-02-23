@@ -12,13 +12,13 @@ export function ResourceBar() {
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-slate-900 border-b border-slate-800 p-2 md:p-4 shadow-md sticky top-0 z-20 shrink-0 gap-2 md:gap-0">
       <div className="flex gap-4 md:gap-6 items-center w-full overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
         {/* Money */}
-        <div className="flex items-center gap-1 md:gap-2 text-green-400 font-bold text-sm md:text-lg min-w-fit">
+        <div className="flex items-center gap-1 md:gap-2 text-green-400 font-bold text-sm md:text-lg min-w-fit" title="Cash available">
           <DollarSign className="w-4 h-4 md:w-5 md:h-5" />
           <span>{money.toLocaleString()} IDR</span>
         </div>
 
         {/* Electricity */}
-        <div className="flex items-center gap-1 md:gap-2 text-yellow-400 min-w-fit">
+        <div className="flex items-center gap-1 md:gap-2 text-yellow-400 min-w-fit" title="Power Usage / Capacity. Install Generators to increase max capacity.">
           <Zap className="w-4 h-4 md:w-5 md:h-5" />
           <div className="flex flex-col text-[10px] md:text-xs leading-none gap-0.5">
             <span className="font-bold text-sm md:text-base">{electricity.current.toFixed(0)} W</span>
@@ -27,7 +27,7 @@ export function ResourceBar() {
         </div>
 
         {/* Heat */}
-        <div className={cn("flex items-center gap-1 md:gap-2 min-w-fit", heat.current > 60 ? "text-red-500" : "text-orange-400")}>
+        <div className={cn("flex items-center gap-1 md:gap-2 min-w-fit", heat.current > 60 ? "text-red-500" : "text-orange-400")} title="Current Temperature. Install AC to reduce heat. High heat damages servers.">
           <Flame className="w-4 h-4 md:w-5 md:h-5" />
           <div className="flex flex-col text-[10px] md:text-xs leading-none gap-0.5">
              <span className="font-bold text-sm md:text-base">{heat.current.toFixed(1)}°C</span>
@@ -36,7 +36,7 @@ export function ResourceBar() {
         </div>
 
         {/* Bandwidth */}
-        <div className="flex items-center gap-1 md:gap-2 text-blue-400 min-w-fit">
+        <div className="flex items-center gap-1 md:gap-2 text-blue-400 min-w-fit" title="Bandwidth Usage / Capacity. Buy ISP Plans to increase max capacity.">
           <Signal className="w-4 h-4 md:w-5 md:h-5" />
           <div className="flex flex-col text-[10px] md:text-xs leading-none gap-0.5">
              <span className="font-bold text-sm md:text-base">{bandwidth.current} Gbps</span>

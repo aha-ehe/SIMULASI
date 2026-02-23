@@ -10,6 +10,7 @@ import { DataCenter } from "./data-center";
 import { Contracts } from "./contracts";
 import { StaffManagement } from "./staff";
 import { EventsPanel } from "./events-panel";
+import { Services } from "./services";
 
 export function GameLayout() {
   const [view, setView] = useState("dashboard");
@@ -51,6 +52,7 @@ export function GameLayout() {
             </div>
           )}
           {view === "racks" && <DataCenter />}
+          {view === "services" && <Services />}
           {view === "contracts" && <Contracts />}
           {view === "staff" && <StaffManagement />}
           {view === "market" && <Marketplace />}
