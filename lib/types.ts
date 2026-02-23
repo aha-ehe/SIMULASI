@@ -56,9 +56,19 @@ export interface Server {
 export interface Rack {
   id: string;
   name: string;
-  capacity: number; // Number of slots (U)
+  type: ComponentType; // 'rack' or 'cooling'
+  capacity?: number; // Number of slots (U) - only for racks
+  cooling?: number; // Cooling capacity (BTU or relative unit) - only for cooling
+  power: number; // Power consumption (for AC)
   servers: (Server | null)[]; // Slot based, null = empty
   position: { x: number; y: number };
+}
+
+export interface Tile {
+  x: number;
+  y: number;
+  unlocked: boolean;
+  price: number;
 }
 
 export interface Contract {
@@ -76,7 +86,8 @@ export interface Contract {
 
 export interface GameState {
   resources: Resources;
-  racks: Rack[];
+  grid: Tile[]; // Track unlocked tiles
+  racks: Rack[]; // Placed items (racks + ACs)
   inventory: {
     components: Component[];
     servers: Server[]; // Assembled servers ready to deploy
@@ -89,7 +100,8 @@ export type GameAction =
   | { type: 'TICK' }
   | { type: 'BUY_COMPONENT'; component: Component }
   | { type: 'ASSEMBLE_SERVER'; name: string; components: { cpu: Component; ram: Component; storage: Component; psu: Component } }
-  | { type: 'PLACE_RACK'; rackComponent: Component; position: { x: number; y: number } }
+  | { type: 'PLACE_ITEM'; itemComponent: Component; position: { x: number; y: number } }
+  | { type: 'UNLOCK_TILE'; x: number; y: number }
   | { type: 'PLACE_SERVER'; serverId: string; rackId: string; slotIndex: number }
   | { type: 'ACCEPT_CONTRACT'; contractId: string }
   | { type: 'LOAD_GAME'; state: GameState }

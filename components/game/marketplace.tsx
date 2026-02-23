@@ -15,7 +15,7 @@ export function Marketplace() {
     }
   };
 
-  const categories = ["rack", "cpu", "ram", "storage", "psu"];
+  const categories = ["rack", "cooling", "cpu", "ram", "storage", "psu"];
 
   return (
     <div className="space-y-8 pb-10">

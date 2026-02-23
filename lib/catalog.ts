@@ -87,4 +87,20 @@ export const CATALOG: Component[] = [
     price: 5000000,
     specs: { power: 0, heat: 0, performance: 0, capacity: 42 },
   },
+
+  // Cooling (AC)
+  {
+    id: "ac-basic",
+    name: "Portable AC Unit",
+    type: "cooling",
+    price: 2000000,
+    specs: { power: 500, heat: 0, performance: 2000 }, // Performance = Cooling Capacity (e.g., BTU/h or specific heat unit)
+  },
+  {
+    id: "ac-industrial",
+    name: "Industrial Chiller",
+    type: "cooling",
+    price: 10000000,
+    specs: { power: 2000, heat: 0, performance: 10000 },
+  },
 ];

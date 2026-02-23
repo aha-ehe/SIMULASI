@@ -4,29 +4,37 @@ import { useGame } from "@/lib/game-store";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Component, Server as ServerType, Rack } from "@/lib/types";
-import { Server, X, Plus } from "lucide-react";
+import { Server, X, Plus, Snowflake, Lock } from "lucide-react";
 
 export function DataCenter() {
   const { state, dispatch } = useGame();
-  const [selectedRackToPlace, setSelectedRackToPlace] = useState<Component | null>(null);
+  const [selectedItemToPlace, setSelectedItemToPlace] = useState<Component | null>(null);
   const [selectedRackId, setSelectedRackId] = useState<string | null>(null);
 
-  // Grid size
-  const rows = 6;
-  const cols = 6;
-  const grid = Array.from({ length: rows * cols }, (_, i) => ({
-    x: i % cols,
-    y: Math.floor(i / cols),
-  }));
-
   const handleCellClick = (x: number, y: number) => {
-    if (selectedRackToPlace) {
+    // Check if tile is unlocked
+    const tile = state.grid.find(t => t.x === x && t.y === y);
+    if (!tile) return;
+
+    if (!tile.unlocked) {
+        // Prompt to unlock? For now, just instant unlock if money
+        if (state.resources.money >= tile.price) {
+            if (confirm(`Unlock tile for ${tile.price.toLocaleString()} IDR?`)) {
+                dispatch({ type: "UNLOCK_TILE", x, y });
+            }
+        } else {
+            alert(`Need ${tile.price.toLocaleString()} IDR to unlock.`);
+        }
+        return;
+    }
+
+    if (selectedItemToPlace) {
       dispatch({
-        type: "PLACE_RACK",
-        rackComponent: selectedRackToPlace,
+        type: "PLACE_ITEM",
+        itemComponent: selectedItemToPlace,
         position: { x, y },
       });
-      setSelectedRackToPlace(null);
+      setSelectedItemToPlace(null);
     }
   };
 
@@ -34,44 +42,64 @@ export function DataCenter() {
     return state.racks.find((r) => r.position.x === x && r.position.y === y);
   };
 
-  const inventoryRacks = state.inventory.components.filter(c => c.type === 'rack');
+  // Sort grid by Y then X
+  const sortedGrid = [...state.grid].sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  const rows = 6;
+  const cols = 6;
 
+  const inventoryItems = state.inventory.components.filter(c => c.type === 'rack' || c.type === 'cooling');
   return (
-    <div className="flex h-full gap-6 relative">
-      <div className="flex-1 bg-slate-900 rounded-lg p-6 border border-slate-800 flex flex-col items-center justify-center relative">
-         <h2 className="absolute top-6 left-6 text-2xl font-bold flex items-center gap-2">
+    <div className="flex flex-col lg:flex-row h-full gap-6 relative">
+      <div className="flex-1 bg-slate-900 rounded-lg p-6 border border-slate-800 flex flex-col items-center justify-center relative overflow-auto">
+         <h2 className="absolute top-6 left-6 text-2xl font-bold flex items-center gap-2 z-10">
             <Server className="w-6 h-6" /> Data Center Floor
          </h2>
 
          <div
-            className="grid gap-2 bg-slate-800 p-4 rounded shadow-inner"
+            className="grid gap-2 bg-slate-950 p-8 rounded shadow-2xl relative"
             style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
          >
-            {grid.map((cell) => {
-                const rack = getRackAt(cell.x, cell.y);
+            {sortedGrid.map((tile) => {
+                const item = getRackAt(tile.x, tile.y);
                 return (
                     <div
-                        key={`${cell.x}-${cell.y}`}
+                        key={`${tile.x}-${tile.y}`}
                         onClick={() => {
-                            if (rack) {
-                                setSelectedRackId(rack.id);
+                            if (item) {
+                                if (item.type === 'rack') setSelectedRackId(item.id);
                             } else {
-                                handleCellClick(cell.x, cell.y);
+                                handleCellClick(tile.x, tile.y);
                             }
                         }}
                         className={cn(
-                            "w-20 h-20 border-2 rounded flex items-center justify-center cursor-pointer transition-all",
-                            rack
-                                ? "bg-slate-700 border-blue-500 hover:bg-slate-600"
-                                : "bg-slate-900/50 border-slate-700 border-dashed hover:border-slate-500",
-                            selectedRackToPlace && !rack && "hover:bg-green-900/50 hover:border-green-500"
+                            "w-16 h-16 sm:w-20 sm:h-20 border-2 rounded flex items-center justify-center cursor-pointer transition-all relative",
+                            !tile.unlocked
+                                ? "bg-slate-950/80 border-slate-800 hover:border-slate-600"
+                                : item
+                                    ? "bg-slate-800 border-blue-500 hover:bg-slate-700"
+                                    : "bg-slate-900 border-slate-700 border-dashed hover:border-slate-500",
+                            selectedItemToPlace && tile.unlocked && !item && "hover:bg-green-900/50 hover:border-green-500"
                         )}
                     >
-                        {rack && (
+                        {!tile.unlocked && (
+                            <div className="flex flex-col items-center text-slate-600">
+                                <Lock className="w-6 h-6" />
+                                <span className="text-[10px] mt-1">{tile.price / 1000}k</span>
+                            </div>
+                        )}
+                        {item && item.type === 'rack' && (
                             <div className="flex flex-col items-center">
                                 <Server className="w-8 h-8 text-blue-400" />
                                 <span className="text-[10px] mt-1 text-slate-300 font-mono">
-                                    {rack.servers.filter(s => s).length}/{rack.capacity}
+                                    {item.servers.filter(s => s).length}/{item.capacity}
+                                </span>
+                            </div>
+                        )}
+                        {item && item.type === 'cooling' && (
+                             <div className="flex flex-col items-center">
+                                <Snowflake className="w-8 h-8 text-cyan-400" />
+                                <span className="text-[10px] mt-1 text-slate-300 font-mono">
+                                    {item.power}W
                                 </span>
                             </div>
                         )}
@@ -80,25 +108,26 @@ export function DataCenter() {
             })}
          </div>
 
-         <div className="absolute bottom-6 left-6 right-6 bg-slate-800 p-4 rounded border border-slate-700 flex gap-4 overflow-x-auto">
+         <div className="absolute bottom-6 left-6 right-6 bg-slate-800 p-4 rounded border border-slate-700 flex gap-4 overflow-x-auto z-10 max-w-full">
              <div className="text-sm font-bold text-slate-400 shrink-0 flex items-center">
                  Inventory:
              </div>
-             {inventoryRacks.length === 0 && (
-                 <div className="text-xs text-slate-500 flex items-center">No racks in inventory. Buy one from Market!</div>
+             {inventoryItems.length === 0 && (
+                 <div className="text-xs text-slate-500 flex items-center">No items to place. Buy racks or ACs from Market!</div>
              )}
-             {inventoryRacks.map(rack => (
+             {inventoryItems.map(item => (
                  <button
-                    key={rack.id}
-                    onClick={() => setSelectedRackToPlace(selectedRackToPlace?.id === rack.id ? null : rack)}
+                    key={item.id}
+                    onClick={() => setSelectedItemToPlace(selectedItemToPlace?.id === item.id ? null : item)}
                     className={cn(
-                        "px-3 py-2 rounded border text-xs font-bold transition-colors shrink-0",
-                        selectedRackToPlace?.id === rack.id
+                        "px-3 py-2 rounded border text-xs font-bold transition-colors shrink-0 flex items-center gap-2",
+                        selectedItemToPlace?.id === item.id
                             ? "bg-blue-600 text-white border-blue-400"
                             : "bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600"
                     )}
                  >
-                     {rack.name}
+                     {item.type === 'cooling' ? <Snowflake className="w-3 h-3" /> : <Server className="w-3 h-3" />}
+                     {item.name}
                  </button>
              ))}
          </div>

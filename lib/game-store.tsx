@@ -3,6 +3,22 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
 import { GameState, GameAction, Component, Server, Rack, Contract } from "./types";
 
+const GRID_ROWS = 6;
+const GRID_COLS = 6;
+
+// Center 2x2 is (2,2), (2,3), (3,2), (3,3)
+const initialGrid = Array.from({ length: GRID_ROWS * GRID_COLS }, (_, i) => {
+  const x = i % GRID_COLS;
+  const y = Math.floor(i / GRID_COLS);
+  const isCenter = x >= 2 && x <= 3 && y >= 2 && y <= 3;
+  return {
+    x,
+    y,
+    unlocked: isCenter,
+    price: isCenter ? 0 : 500000, // 500k to unlock a tile
+  };
+});
+
 const initialState: GameState = {
   resources: {
     money: 5000000,
@@ -11,6 +27,7 @@ const initialState: GameState = {
     bandwidth: { current: 0, max: 1000 }, // 1Gbps
     reputation: 100,
   },
+  grid: initialGrid,
   racks: [],
   inventory: {
     components: [],
@@ -44,34 +61,61 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       let currentPower = 0;
       let currentHeat = 0;
       let totalCompute = 0;
+      let totalCooling = 0;
 
       // Temporary arrays to mutate if needed (e.g. shutdown servers)
       let newRacks = state.racks;
 
-      state.racks.forEach((rack) => {
-        rack.servers.forEach((server) => {
-          if (server && server.status === "active") {
-            currentPower += server.stats.power;
-            currentHeat += server.stats.heat;
-            totalCompute += server.stats.compute;
-          }
-        });
+      state.racks.forEach((item) => {
+        if (item.type === 'cooling') {
+            currentPower += item.power;
+            totalCooling += (item.cooling || 0);
+        } else if (item.type === 'rack') {
+            item.servers.forEach((server) => {
+              if (server && server.status === "active") {
+                currentPower += server.stats.power;
+                currentHeat += server.stats.heat;
+                totalCompute += server.stats.compute;
+              }
+            });
+        }
       });
 
       // 2. Resource Updates
-      // Heat dissipation
-      const coolingFactor = 100;
-      const newTemp = 20 + currentHeat / coolingFactor;
+      // Heat dissipation:
+      // Ambient is 20. Servers add heat. AC removes heat.
+      // Model: Temp = Ambient + (TotalHeat - TotalCooling) / Efficiency
+      // If Cooling > Heat, we can go below ambient? No, clamp at ambient for simple AC logic.
+      // But usually AC tries to maintain target. Let's make it simple physics:
+      // Heat adds to temp, Cooling subtracts.
+      // Let's stick to the previous simple model but incorporate cooling.
+      // old: newTemp = 20 + currentHeat / 100
+      // new: newTemp = 20 + max(0, currentHeat - totalCooling) / 100
+      // Wait, 20 is ambient. If cooling capacity is huge, it should just be ambient.
+      // If we have 1000 Heat and 500 Cooling, effective heat is 500.
+
+      const effectiveHeat = Math.max(0, currentHeat - totalCooling);
+      const coolingFactor = 100; // Thermal mass of the room
+      const newTemp = 20 + effectiveHeat / coolingFactor;
 
       // 3. Power Failure Check
       if (currentPower > state.resources.electricity.max) {
           // Blackout! Turn off all servers
-          newRacks = state.racks.map(r => ({
-              ...r,
-              servers: r.servers.map(s => s ? { ...s, status: 'off' } : null)
-          }));
+          newRacks = state.racks.map(item => {
+              if (item.type === 'rack') {
+                  return {
+                     ...item,
+                     servers: item.servers.map(s => s ? { ...s, status: 'off' } : null)
+                  };
+              }
+              // AC units (cooling) don't have 'status' field currently, but they stop working if power is cut.
+              // Logic handles this by currentPower becoming 0 next tick if we don't fix it.
+              // For now, let's just accept the blackout clears active load.
+              return item;
+          });
           currentPower = 0;
-          currentHeat = 0; // Immediate cooling effect for generation
+          // currentHeat stays, but generation stops.
+          // Immediate cooling effect for generation? Yes, no power = no heat gen.
       }
 
       // 4. Overheat Check
@@ -170,29 +214,55 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             }
         };
     }
-    case "PLACE_RACK": {
+    case "PLACE_ITEM": {
+        // Check if tile is unlocked
+        const tile = state.grid.find(t => t.x === action.position.x && t.y === action.position.y);
+        if (!tile || !tile.unlocked) return state;
+
         const isOccupied = state.racks.some(r => r.position.x === action.position.x && r.position.y === action.position.y);
         if (isOccupied) return state;
 
-        const rackIndex = state.inventory.components.findIndex(c => c.id === action.rackComponent.id);
-        if (rackIndex === -1) return state;
+        const itemIndex = state.inventory.components.findIndex(c => c.id === action.itemComponent.id);
+        if (itemIndex === -1) return state;
 
         const newComponents = [...state.inventory.components];
-        newComponents.splice(rackIndex, 1);
+        newComponents.splice(itemIndex, 1);
 
-        const newRack: Rack = {
-             id: `rack-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-             name: action.rackComponent.name,
-             capacity: action.rackComponent.specs.capacity || 10,
-             servers: Array(action.rackComponent.specs.capacity || 10).fill(null),
+        const isRack = action.itemComponent.type === 'rack';
+
+        const newItem: Rack = { // Using 'Rack' interface for all placed items for now
+             id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+             name: action.itemComponent.name,
+             type: action.itemComponent.type,
+             capacity: isRack ? (action.itemComponent.specs.capacity || 10) : 0,
+             cooling: action.itemComponent.type === 'cooling' ? action.itemComponent.specs.performance : 0, // performance = cooling capacity
+             power: action.itemComponent.specs.power,
+             servers: isRack ? Array(action.itemComponent.specs.capacity || 10).fill(null) : [],
              position: action.position,
          };
 
          return {
              ...state,
              inventory: { ...state.inventory, components: newComponents },
-             racks: [...state.racks, newRack],
+             racks: [...state.racks, newItem],
          };
+    }
+    case "UNLOCK_TILE": {
+        const tileIndex = state.grid.findIndex(t => t.x === action.x && t.y === action.y);
+        if (tileIndex === -1) return state;
+
+        const tile = state.grid[tileIndex];
+        if (tile.unlocked) return state;
+        if (state.resources.money < tile.price) return state;
+
+        const newGrid = [...state.grid];
+        newGrid[tileIndex] = { ...tile, unlocked: true };
+
+        return {
+            ...state,
+            resources: { ...state.resources, money: state.resources.money - tile.price },
+            grid: newGrid,
+        };
     }
     case "PLACE_SERVER": {
         const { serverId, rackId, slotIndex } = action;
