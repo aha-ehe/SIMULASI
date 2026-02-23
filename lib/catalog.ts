@@ -103,4 +103,20 @@ export const CATALOG: Component[] = [
     price: 10000000,
     specs: { power: 2000, heat: 0, performance: 10000 },
   },
+
+  // Power Backups (UPS / Generator)
+  {
+      id: "ups-small",
+      name: "Small UPS (1000W)",
+      type: "ups",
+      price: 500000,
+      specs: { power: 0, heat: 5, performance: 1000 }, // Performance = Wh capacity
+  },
+  {
+      id: "gen-diesel",
+      name: "Diesel Generator",
+      type: "generator",
+      price: 15000000,
+      specs: { power: 0, heat: 50, performance: 10000 }, // Performance = Generation capacity W
+  }
 ];

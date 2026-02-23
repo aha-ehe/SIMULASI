@@ -17,7 +17,7 @@ export interface Resources {
   reputation: number;
 }
 
-export type ComponentType = 'cpu' | 'ram' | 'storage' | 'psu' | 'rack' | 'cooling';
+export type ComponentType = 'cpu' | 'ram' | 'storage' | 'psu' | 'rack' | 'cooling' | 'ups' | 'generator';
 
 export interface ComponentSpecs {
   power: number; // Wattage consumption
@@ -36,6 +36,26 @@ export interface Component {
   specs: ComponentSpecs;
 }
 
+export interface Staff {
+  id: string;
+  name: string;
+  role: 'technician' | 'manager' | 'security';
+  salary: number; // Cost per tick
+  skill: number; // 0-100
+  assignedAt: number; // Time hired
+}
+
+export interface Software {
+  id: string;
+  name: string;
+  type: 'os' | 'firewall' | 'service';
+  price: number;
+  diskSpace: number; // GB
+  ramUsage: number; // GB
+  computeUsage: number; // Performance points
+  firewallRating?: number; // 0-100 protection
+}
+
 export interface Server {
   id: string;
   name: string;
@@ -51,6 +71,8 @@ export interface Server {
     heat: number;
     compute: number; // Aggregated performance
   };
+  installedSoftware: Software[];
+  health: number; // 0-100%
 }
 
 export interface Rack {
@@ -84,6 +106,17 @@ export interface Contract {
   status: 'available' | 'active' | 'completed' | 'failed';
 }
 
+export interface GameEvent {
+    id: string;
+    type: 'ddos' | 'outage' | 'market_crash';
+    title: string;
+    description: string;
+    severity: 'low' | 'medium' | 'high';
+    startTime: number;
+    duration: number;
+    active: boolean;
+}
+
 export interface GameState {
   resources: Resources;
   grid: Tile[]; // Track unlocked tiles
@@ -93,6 +126,8 @@ export interface GameState {
     servers: Server[]; // Assembled servers ready to deploy
   };
   contracts: Contract[];
+  staff: Staff[];
+  events: GameEvent[];
   time: number; // Game ticks
 }
 
@@ -103,6 +138,10 @@ export type GameAction =
   | { type: 'PLACE_ITEM'; itemComponent: Component; position: { x: number; y: number } }
   | { type: 'UNLOCK_TILE'; x: number; y: number }
   | { type: 'PLACE_SERVER'; serverId: string; rackId: string; slotIndex: number }
+  | { type: 'INSTALL_SOFTWARE'; serverId: string; software: Software }
+  | { type: 'UNINSTALL_SOFTWARE'; serverId: string; softwareId: string }
+  | { type: 'HIRE_STAFF'; role: 'technician' | 'manager' | 'security' }
+  | { type: 'FIRE_STAFF'; staffId: string }
   | { type: 'ACCEPT_CONTRACT'; contractId: string }
   | { type: 'LOAD_GAME'; state: GameState }
   | { type: 'RESET_GAME' };

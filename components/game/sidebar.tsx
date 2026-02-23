@@ -13,6 +13,7 @@ export function Sidebar({ currentView, setView }: SidebarProps) {
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "racks", label: "Data Center", icon: Server },
     { id: "contracts", label: "Contracts", icon: FileText },
+    { id: "staff", label: "Staff", icon: Users },
     { id: "assembly", label: "Assembly", icon: Wrench },
     { id: "market", label: "Market", icon: ShoppingCart },
   ];

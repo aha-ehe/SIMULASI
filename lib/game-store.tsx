@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
-import { GameState, GameAction, Component, Server, Rack, Contract } from "./types";
+import { GameState, GameAction, Component, Server, Rack, Contract, Software, Staff } from "./types";
 
 const GRID_ROWS = 6;
 const GRID_COLS = 6;
@@ -34,6 +34,7 @@ const initialState: GameState = {
     servers: [],
   },
   contracts: [],
+  staff: [],
   time: 0,
 };
 
@@ -54,6 +55,42 @@ function generateRandomContractPerTick(time: number): Contract {
     };
 }
 
+function generateRandomEvent(time: number, reputation: number): GameEvent | null {
+    // Basic probability, higher reputation = more risk?
+    // Start events only after 10 minutes (600 ticks) to protect new players
+    if (time < 600) return null;
+
+    const roll = Math.random();
+    // 0.2% chance per tick (reduced from 0.5% for better balance)
+    if (roll < 0.002) {
+        const typeRoll = Math.random();
+        if (typeRoll < 0.5) {
+            return {
+                id: `evt-${Date.now()}`,
+                type: 'ddos',
+                title: 'DDoS Attack',
+                description: 'A massive botnet is attacking our network! Bandwidth is crippled.',
+                severity: 'high',
+                startTime: time,
+                duration: 60, // 60 seconds
+                active: true,
+            };
+        } else {
+            return {
+                 id: `evt-${Date.now()}`,
+                 type: 'outage',
+                 title: 'Grid Power Instability',
+                 description: 'Main power grid is fluctuating. Expect power drops.',
+                 severity: 'medium',
+                 startTime: time,
+                 duration: 45,
+                 active: true,
+            };
+        }
+    }
+    return null;
+}
+
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "TICK": {
@@ -66,18 +103,104 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Temporary arrays to mutate if needed (e.g. shutdown servers)
       let newRacks = state.racks;
 
-      state.racks.forEach((item) => {
+      // 0. Staff Logic (Technicians)
+      const technicians = state.staff.filter(s => s.role === 'technician');
+      const techRepairRate = technicians.length * 2; // Each tech repairs 2% health per tick across the board (simplified)
+
+      // We will distribute repairs to most damaged servers.
+      // But for simple logic, let's just apply repair to all damaged servers but capped by tech capacity?
+      // Or simply: Each tech repairs 1 server fully?
+      // Let's do: Each tick, technicians repair X total health points distributed among lowest health servers.
+      let repairPoints = technicians.reduce((acc, t) => acc + (t.skill / 10), 0); // e.g. skill 50 -> 5 points
+
+      let newRacks = [...state.racks]; // Copy for mutation during loop
+
+      newRacks = newRacks.map(item => {
+        if (item.type === 'rack') {
+             const newServers = item.servers.map(server => {
+                 if (!server) return null;
+
+                 let newHealth = server.health;
+
+                 // Degradation
+                 // Base degradation 0.05% per tick
+                 // Heat multiplier: if temp > 40, faster.
+                 const heatMultiplier = state.resources.heat.current > 40 ? (state.resources.heat.current - 20) / 20 : 1;
+                 const degradation = 0.05 * heatMultiplier;
+
+                 if (server.status === 'active') {
+                     newHealth = Math.max(0, newHealth - degradation);
+                 }
+
+                 // Repair Logic
+                 if (newHealth < 100 && repairPoints > 0) {
+                     const repairAmount = Math.min(100 - newHealth, repairPoints); // Repair up to 100 or available points
+                     // Prioritize servers < 50%? For now just sequential.
+                     newHealth += repairAmount;
+                     repairPoints -= repairAmount;
+                 }
+
+                 return { ...server, health: newHealth };
+             });
+             return { ...item, servers: newServers };
+        }
+        return item;
+      });
+
+      // Event Generation
+      const newEvents = [...state.events];
+      const randomEvent = generateRandomEvent(state.time, state.resources.reputation);
+      if (randomEvent) {
+          newEvents.push(randomEvent);
+      }
+
+      // Filter expired events
+      const activeEvents = newEvents.filter(e => {
+          if (state.time > e.startTime + e.duration) return false; // expired
+          return true;
+      });
+
+      const isDdosActive = activeEvents.some(e => e.type === 'ddos');
+      const isOutageActive = activeEvents.some(e => e.type === 'outage');
+
+      // Calculate active items and generation
+      let generatorCapacity = 0;
+      let upsCapacity = 0; // Stored power (Wh) - Not implemented as battery yet, simplified as backup capacity?
+      let totalFirewallRating = 0;
+
+      // Let's iterate grid items first
+      newRacks.forEach((item) => {
         if (item.type === 'cooling') {
             currentPower += item.power;
             totalCooling += (item.cooling || 0);
         } else if (item.type === 'rack') {
             item.servers.forEach((server) => {
               if (server && server.status === "active") {
+                const hasOS = server.installedSoftware.some(s => s.type === 'os');
                 currentPower += server.stats.power;
                 currentHeat += server.stats.heat;
-                totalCompute += server.stats.compute;
+
+                // Firewall logic
+                server.installedSoftware.forEach(sw => {
+                    if (sw.type === 'firewall') {
+                        totalFirewallRating += (sw.firewallRating || 0);
+                    }
+                });
+
+                if (hasOS && server.health > 0) {
+                    totalCompute += server.stats.compute;
+                }
               }
             });
+        } else if (item.type === 'generator') {
+             // Generators add to max capacity but cost fuel?
+             // For MVP: Generators simply add to max capacity and generate heat.
+             // item.specs.performance is capacity.
+             generatorCapacity += (item.specs?.performance || 0); // using performance field for capacity
+             currentHeat += (item.specs?.heat || 50);
+        } else if (item.type === 'ups') {
+             // UPS adds 'buffer'
+             upsCapacity += (item.specs?.performance || 0);
         }
       });
 
@@ -99,23 +222,26 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const newTemp = 20 + effectiveHeat / coolingFactor;
 
       // 3. Power Failure Check
-      if (currentPower > state.resources.electricity.max) {
-          // Blackout! Turn off all servers
-          newRacks = state.racks.map(item => {
-              if (item.type === 'rack') {
-                  return {
-                     ...item,
-                     servers: item.servers.map(s => s ? { ...s, status: 'off' } : null)
-                  };
-              }
-              // AC units (cooling) don't have 'status' field currently, but they stop working if power is cut.
-              // Logic handles this by currentPower becoming 0 next tick if we don't fix it.
-              // For now, let's just accept the blackout clears active load.
-              return item;
-          });
-          currentPower = 0;
-          // currentHeat stays, but generation stops.
-          // Immediate cooling effect for generation? Yes, no power = no heat gen.
+      const totalMaxPower = state.resources.electricity.max + generatorCapacity;
+
+      // If load > max, check UPS
+      if (currentPower > totalMaxPower) {
+          // If we have UPS, maybe we survive if the overload is small?
+          // Or UPS gives us time.
+          // Simplified: UPS increases tolerance for spikes.
+          if (currentPower > totalMaxPower + upsCapacity) {
+              // Blackout!
+              newRacks = state.racks.map(item => {
+                  if (item.type === 'rack') {
+                      return {
+                         ...item,
+                         servers: item.servers.map(s => s ? { ...s, status: 'off' } : null)
+                      };
+                  }
+                  return item;
+              });
+              currentPower = 0;
+          }
       }
 
       // 4. Overheat Check
@@ -156,7 +282,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       // Electricity Cost
-      const expenses = currentPower * 0.1;
+      let expenses = currentPower * 0.1;
+
+      // Staff Salaries
+      const salaries = state.staff.reduce((acc, s) => acc + s.salary, 0);
+      expenses += salaries;
 
       return {
         ...state,
@@ -170,6 +300,31 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         contracts: newContracts,
         time: state.time + 1,
       };
+    }
+    case "HIRE_STAFF": {
+        const hireCost = 100000; // Sign-on bonus/fee
+        if (state.resources.money < hireCost) return state;
+
+        const newStaff: Staff = {
+            id: `staff-${Date.now()}`,
+            name: `${action.role === 'technician' ? 'Tech' : 'Mgr'} ${Math.floor(Math.random() * 100)}`,
+            role: action.role,
+            salary: action.role === 'technician' ? 500 : 1000, // Salary per tick
+            skill: 50 + Math.floor(Math.random() * 50),
+            assignedAt: state.time,
+        };
+
+        return {
+            ...state,
+            resources: { ...state.resources, money: state.resources.money - hireCost },
+            staff: [...state.staff, newStaff]
+        };
+    }
+    case "FIRE_STAFF": {
+        return {
+            ...state,
+            staff: state.staff.filter(s => s.id !== action.staffId)
+        };
     }
     case "BUY_COMPONENT": {
       if (state.resources.money < action.component.price) return state;
@@ -199,7 +354,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 power: totalPower,
                 heat: cpu.specs.heat + ram.specs.heat + storage.specs.heat + psu.specs.heat,
                 compute: cpu.specs.performance + ram.specs.performance,
-            }
+            },
+            installedSoftware: [],
+            health: 100,
         };
 
         const usedIds = [cpu.id, ram.id, storage.id, psu.id];
@@ -277,7 +434,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             if (rack.id === rackId) {
                 const newSlots = [...rack.servers];
                 if (newSlots[slotIndex] === null) {
-                    newSlots[slotIndex] = { ...server, status: "active" }; // Auto turn on
+                    // Don't auto-turn on, require OS first?
+                    // Let's keep auto-turn on but it won't produce compute without OS.
+                    newSlots[slotIndex] = { ...server, status: "active" };
                     return { ...rack, servers: newSlots };
                 }
             }
@@ -288,6 +447,38 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             ...state,
             inventory: { ...state.inventory, servers: newServersList },
             racks: newRacks,
+        };
+    }
+    case "INSTALL_SOFTWARE": {
+        // Find server either in inventory or in a rack
+        // Assuming we only install on servers in racks for now as per requirement "before operation" or "maintenance"
+        // But users might want to pre-install.
+        // Let's handle servers in racks primarily for the UI flow.
+
+        if (state.resources.money < action.software.price) return state;
+
+        const newRacks = state.racks.map(rack => {
+            if (rack.type !== 'rack') return rack;
+            const newServers = rack.servers.map(server => {
+                if (server && server.id === action.serverId) {
+                    // Check if already installed
+                    if (server.installedSoftware.some(s => s.id === action.software.id)) return server;
+                    // Check constraints (disk space?)
+                    // For MVP allow installation.
+                    return {
+                        ...server,
+                        installedSoftware: [...server.installedSoftware, action.software]
+                    };
+                }
+                return server;
+            });
+            return { ...rack, servers: newServers };
+        });
+
+        return {
+            ...state,
+            resources: { ...state.resources, money: state.resources.money - action.software.price },
+            racks: newRacks
         };
     }
     case "ACCEPT_CONTRACT": {

@@ -4,7 +4,8 @@ import { useGame } from "@/lib/game-store";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Component, Server as ServerType, Rack } from "@/lib/types";
-import { Server, X, Plus, Snowflake, Lock } from "lucide-react";
+import { Server, X, Plus, Snowflake, Lock, Terminal, Shield, Battery, Zap } from "lucide-react";
+import { SOFTWARE_CATALOG } from "@/lib/software-catalog";
 
 export function DataCenter() {
   const { state, dispatch } = useGame();
@@ -47,7 +48,7 @@ export function DataCenter() {
   const rows = 6;
   const cols = 6;
 
-  const inventoryItems = state.inventory.components.filter(c => c.type === 'rack' || c.type === 'cooling');
+  const inventoryItems = state.inventory.components.filter(c => ['rack', 'cooling', 'ups', 'generator'].includes(c.type));
   return (
     <div className="flex flex-col lg:flex-row h-full gap-6 relative">
       <div className="flex-1 bg-slate-900 rounded-lg p-6 border border-slate-800 flex flex-col items-center justify-center relative overflow-auto">
@@ -103,6 +104,22 @@ export function DataCenter() {
                                 </span>
                             </div>
                         )}
+                        {item && item.type === 'ups' && (
+                             <div className="flex flex-col items-center">
+                                <Battery className="w-8 h-8 text-yellow-400" />
+                                <span className="text-[10px] mt-1 text-slate-300 font-mono">
+                                    UPS
+                                </span>
+                            </div>
+                        )}
+                        {item && item.type === 'generator' && (
+                             <div className="flex flex-col items-center">
+                                <Zap className="w-8 h-8 text-orange-400" />
+                                <span className="text-[10px] mt-1 text-slate-300 font-mono">
+                                    GEN
+                                </span>
+                            </div>
+                        )}
                     </div>
                 );
             })}
@@ -126,7 +143,10 @@ export function DataCenter() {
                             : "bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600"
                     )}
                  >
-                     {item.type === 'cooling' ? <Snowflake className="w-3 h-3" /> : <Server className="w-3 h-3" />}
+                     {item.type === 'cooling' ? <Snowflake className="w-3 h-3" /> :
+                      item.type === 'ups' ? <Battery className="w-3 h-3" /> :
+                      item.type === 'generator' ? <Zap className="w-3 h-3" /> :
+                      <Server className="w-3 h-3" />}
                      {item.name}
                  </button>
              ))}
@@ -165,8 +185,22 @@ function RackDetails({ rackId, onClose }: { rackId: string, onClose: () => void 
         }
     }
 
+    const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
+
+    const selectedServer = rack.servers.find(s => s && s.id === selectedServerId);
+
+    if (selectedServer) {
+        return (
+            <ServerConsole
+                server={selectedServer}
+                onBack={() => setSelectedServerId(null)}
+                onClose={onClose}
+            />
+        );
+    }
+
     return (
-        <div className="w-96 bg-slate-900 border-l border-slate-800 p-6 flex flex-col h-full overflow-hidden shadow-2xl rounded-r-lg">
+        <div className="w-full md:w-96 bg-slate-900 border-l border-slate-800 p-6 flex flex-col h-full overflow-hidden shadow-2xl rounded-r-lg absolute right-0 top-0 bottom-0 z-20">
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h3 className="text-xl font-bold">{rack.name}</h3>
@@ -182,19 +216,31 @@ function RackDetails({ rackId, onClose }: { rackId: string, onClose: () => void 
                     <div
                         key={idx}
                         className={cn(
-                            "h-12 border rounded flex items-center justify-between px-3 text-sm transition-colors",
+                            "h-14 border rounded flex items-center justify-between px-3 text-sm transition-colors",
                             server
-                                ? "bg-slate-800 border-slate-700"
+                                ? "bg-slate-800 border-slate-700 cursor-pointer hover:border-blue-500"
                                 : "bg-slate-900/50 border-slate-800 border-dashed hover:border-slate-600 cursor-pointer"
                         )}
-                        onClick={() => !server && setInstallingSlot(idx)}
+                        onClick={() => server ? setSelectedServerId(server.id) : setInstallingSlot(idx)}
                     >
                         <span className="text-slate-500 w-6 font-mono text-xs">{idx + 1}</span>
                         {server ? (
                             <div className="flex-1 flex justify-between items-center">
-                                <span className="font-bold text-blue-400">{server.name}</span>
-                                <div className="text-[10px] text-slate-400">
-                                    {server.status === 'active' ? <span className="text-green-500">RUNNING</span> : 'OFF'}
+                                <div>
+                                    <span className="font-bold text-blue-400 block">{server.name}</span>
+                                    <div className="flex gap-2">
+                                         {server.installedSoftware.some(s => s.type === 'os') ? (
+                                             <span className="text-[10px] text-green-400 flex items-center gap-1"><Terminal className="w-3 h-3"/> Ready</span>
+                                         ) : (
+                                             <span className="text-[10px] text-red-400 flex items-center gap-1">No OS</span>
+                                         )}
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-[10px] text-slate-400">
+                                        {server.status === 'active' ? <span className="text-green-500">ON</span> : 'OFF'}
+                                    </div>
+                                    <div className="text-[10px] text-slate-500">{server.health}% HP</div>
                                 </div>
                             </div>
                         ) : (
@@ -228,6 +274,107 @@ function RackDetails({ rackId, onClose }: { rackId: string, onClose: () => void 
                                 </button>
                             ))}
                         </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function ServerConsole({ server, onBack, onClose }: { server: ServerType, onBack: () => void, onClose: () => void }) {
+    const { state, dispatch } = useGame();
+    const [tab, setTab] = useState<'info' | 'software'>('info');
+
+    const installedIds = server.installedSoftware.map(s => s.id);
+    const availableSoftware = SOFTWARE_CATALOG;
+
+    const install = (sw: any) => {
+        if (state.resources.money >= sw.price) {
+            dispatch({ type: 'INSTALL_SOFTWARE', serverId: server.id, software: sw });
+        }
+    };
+
+    return (
+        <div className="w-full md:w-96 bg-slate-950 border-l border-slate-800 p-6 flex flex-col h-full overflow-hidden shadow-2xl rounded-r-lg absolute right-0 top-0 bottom-0 z-30">
+             <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-4">
+                <div className="flex items-center gap-2">
+                    <button onClick={onBack} className="text-slate-400 hover:text-white text-sm underline">Back</button>
+                    <h3 className="text-lg font-bold flex items-center gap-2"><Terminal className="w-5 h-5 text-green-500" /> Console</h3>
+                </div>
+                <button onClick={onClose}><X className="w-5 h-5 text-slate-400" /></button>
+            </div>
+
+            <div className="mb-4">
+                <h4 className="text-xl font-bold text-white">{server.name}</h4>
+                <div className="flex gap-4 mt-2 text-xs">
+                    <button onClick={() => setTab('info')} className={cn("pb-1 border-b-2 transition-colors", tab === 'info' ? "border-blue-500 text-white" : "border-transparent text-slate-500")}>Info</button>
+                    <button onClick={() => setTab('software')} className={cn("pb-1 border-b-2 transition-colors", tab === 'software' ? "border-blue-500 text-white" : "border-transparent text-slate-500")}>Software</button>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+                {tab === 'info' && (
+                    <div className="space-y-4 text-sm text-slate-300">
+                        <div className="bg-slate-900 p-3 rounded">
+                            <div className="text-xs text-slate-500 uppercase">Specs</div>
+                            <div>CPU: {server.components.cpu.name}</div>
+                            <div>RAM: {server.components.ram.name}</div>
+                            <div>Storage: {server.components.storage.name}</div>
+                            <div>Power: {server.stats.power}W</div>
+                        </div>
+                         <div className="bg-slate-900 p-3 rounded">
+                            <div className="text-xs text-slate-500 uppercase">Status</div>
+                            <div className="flex justify-between">
+                                <span>Health</span>
+                                <span className={server.health < 50 ? "text-red-500" : "text-green-500"}>{server.health}%</span>
+                            </div>
+                             <div className="flex justify-between">
+                                <span>OS Status</span>
+                                <span className={server.installedSoftware.some(s => s.type === 'os') ? "text-green-500" : "text-red-500"}>
+                                    {server.installedSoftware.some(s => s.type === 'os') ? "Operational" : "Missing OS"}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {tab === 'software' && (
+                    <div className="space-y-3">
+                         {server.installedSoftware.length > 0 && (
+                            <div className="mb-4">
+                                <h5 className="text-xs font-bold text-slate-500 uppercase mb-2">Installed</h5>
+                                {server.installedSoftware.map(sw => (
+                                    <div key={sw.id} className="bg-slate-800 p-2 rounded flex justify-between items-center text-xs border border-green-900/50">
+                                        <span className="text-green-400 font-mono">{sw.name}</span>
+                                        {sw.type === 'firewall' && <Shield className="w-3 h-3 text-blue-400" />}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <h5 className="text-xs font-bold text-slate-500 uppercase mb-2">Available for Install</h5>
+                        {availableSoftware.map(sw => {
+                             const isInstalled = installedIds.includes(sw.id);
+                             const hasOS = server.installedSoftware.some(s => s.type === 'os');
+                             // Can only install 1 OS
+                             const disabled = isInstalled || (sw.type === 'os' && hasOS);
+
+                             return (
+                                <div key={sw.id} className="bg-slate-900 p-3 rounded border border-slate-800 flex justify-between items-center">
+                                    <div>
+                                        <div className="font-bold text-sm text-white">{sw.name}</div>
+                                        <div className="text-[10px] text-slate-500">{sw.type.toUpperCase()} • {sw.price === 0 ? 'FREE' : `${sw.price/1000}k`}</div>
+                                    </div>
+                                    <button
+                                        onClick={() => install(sw)}
+                                        disabled={disabled || state.resources.money < sw.price}
+                                        className="px-2 py-1 bg-blue-600 disabled:bg-slate-700 text-xs rounded font-bold"
+                                    >
+                                        {isInstalled ? "Installed" : "Install"}
+                                    </button>
+                                </div>
+                             );
+                        })}
                     </div>
                 )}
             </div>
