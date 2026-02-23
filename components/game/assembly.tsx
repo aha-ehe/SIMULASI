@@ -150,7 +150,7 @@ export function Assembly() {
   );
 }
 
-function ComponentSelect({ label, icon: Icon, items, selected, onSelect }: any) {
+function ComponentSelect({ label, icon: Icon, items, selected, onSelect }: { label: string, icon: React.ElementType, items: Component[], selected: Component | null, onSelect: (c: Component | null) => void }) {
   return (
     <div>
       <label className="block text-sm font-medium text-slate-400 mb-1 flex items-center gap-2">

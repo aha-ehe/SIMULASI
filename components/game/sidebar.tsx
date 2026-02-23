@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, Server, Wrench, ShoppingCart, FileText } from "lucide-react";
+import { LayoutDashboard, Server, Wrench, ShoppingCart, FileText, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {

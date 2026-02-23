@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
-import { GameState, GameAction, Component, Server, Rack, Contract, Software, Staff } from "./types";
+import { GameState, GameAction, Component, Server, Rack, Contract, Software, Staff, GameEvent } from "./types";
 
 const GRID_ROWS = 6;
 const GRID_COLS = 6;
@@ -35,6 +35,7 @@ const initialState: GameState = {
   },
   contracts: [],
   staff: [],
+  events: [],
   time: 0,
 };
 
@@ -105,17 +106,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // 0. Staff Logic (Technicians)
       const technicians = state.staff.filter(s => s.role === 'technician');
-      const techRepairRate = technicians.length * 2; // Each tech repairs 2% health per tick across the board (simplified)
-
-      // We will distribute repairs to most damaged servers.
-      // But for simple logic, let's just apply repair to all damaged servers but capped by tech capacity?
-      // Or simply: Each tech repairs 1 server fully?
-      // Let's do: Each tick, technicians repair X total health points distributed among lowest health servers.
+      // Each tech repairs 2% health per tick across the board (simplified)
       let repairPoints = technicians.reduce((acc, t) => acc + (t.skill / 10), 0); // e.g. skill 50 -> 5 points
 
-      let newRacks = [...state.racks]; // Copy for mutation during loop
+      let racksWithHealth = [...state.racks]; // Copy for mutation during loop
 
-      newRacks = newRacks.map(item => {
+      racksWithHealth = racksWithHealth.map(item => {
         if (item.type === 'rack') {
              const newServers = item.servers.map(server => {
                  if (!server) return null;
@@ -146,6 +142,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
         return item;
       });
+
+      newRacks = racksWithHealth;
 
       // Event Generation
       const newEvents = [...state.events];
@@ -205,24 +203,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       });
 
       // 2. Resource Updates
-      // Heat dissipation:
-      // Ambient is 20. Servers add heat. AC removes heat.
-      // Model: Temp = Ambient + (TotalHeat - TotalCooling) / Efficiency
-      // If Cooling > Heat, we can go below ambient? No, clamp at ambient for simple AC logic.
-      // But usually AC tries to maintain target. Let's make it simple physics:
-      // Heat adds to temp, Cooling subtracts.
-      // Let's stick to the previous simple model but incorporate cooling.
-      // old: newTemp = 20 + currentHeat / 100
-      // new: newTemp = 20 + max(0, currentHeat - totalCooling) / 100
-      // Wait, 20 is ambient. If cooling capacity is huge, it should just be ambient.
-      // If we have 1000 Heat and 500 Cooling, effective heat is 500.
-
+      // Heat dissipation
       const effectiveHeat = Math.max(0, currentHeat - totalCooling);
       const coolingFactor = 100; // Thermal mass of the room
       const newTemp = 20 + effectiveHeat / coolingFactor;
 
       // 3. Power Failure Check
-      const totalMaxPower = state.resources.electricity.max + generatorCapacity;
+      let totalMaxPower = state.resources.electricity.max + generatorCapacity;
+
+      // Simulating Outage Event: Grid power (base 5000) drops to 0?
+      if (isOutageActive) {
+          totalMaxPower = generatorCapacity; // Only generators work!
+      }
 
       // If load > max, check UPS
       if (currentPower > totalMaxPower) {
@@ -244,13 +236,21 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           }
       }
 
-      // 4. Overheat Check
-      if (newTemp > state.resources.heat.max) {
-           // Danger!
-           // For MVP, randomly turn off servers or reduce reputation.
-      }
+      // 4. Overheat Check (simplified)
+      // ...
 
       // 5. Contracts Logic
+
+      // DDoS Logic: Reduces effective compute for contracts
+      // If Firewall rating is high, effect is low.
+      // 100 rating = 100% protection?
+      let effectiveCompute = totalCompute;
+      if (isDdosActive) {
+          const mitigation = Math.min(1, totalFirewallRating / 100); // Need 100 rating to fully mitigate
+          const impact = 0.8 * (1 - mitigation); // Max 80% reduction
+          effectiveCompute = totalCompute * (1 - impact);
+      }
+
       // Generate new contracts
       let newContracts = [...state.contracts];
       if (state.time % 5 === 0 && newContracts.filter(c => c.status === 'available').length < 5) {
@@ -265,7 +265,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
               return { ...contract, status: 'completed' };
           }
 
-          if (totalCompute >= contract.requirements.compute) {
+          if (effectiveCompute >= contract.requirements.compute) {
             revenue += contract.reward;
             return {
               ...contract,
@@ -298,6 +298,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         },
         racks: newRacks,
         contracts: newContracts,
+        events: activeEvents,
         time: state.time + 1,
       };
     }
@@ -396,6 +397,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
              power: action.itemComponent.specs.power,
              servers: isRack ? Array(action.itemComponent.specs.capacity || 10).fill(null) : [],
              position: action.position,
+             specs: action.itemComponent.specs,
          };
 
          return {
@@ -434,8 +436,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             if (rack.id === rackId) {
                 const newSlots = [...rack.servers];
                 if (newSlots[slotIndex] === null) {
-                    // Don't auto-turn on, require OS first?
-                    // Let's keep auto-turn on but it won't produce compute without OS.
                     newSlots[slotIndex] = { ...server, status: "active" };
                     return { ...rack, servers: newSlots };
                 }
@@ -450,21 +450,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
     }
     case "INSTALL_SOFTWARE": {
-        // Find server either in inventory or in a rack
-        // Assuming we only install on servers in racks for now as per requirement "before operation" or "maintenance"
-        // But users might want to pre-install.
-        // Let's handle servers in racks primarily for the UI flow.
-
         if (state.resources.money < action.software.price) return state;
 
         const newRacks = state.racks.map(rack => {
             if (rack.type !== 'rack') return rack;
             const newServers = rack.servers.map(server => {
                 if (server && server.id === action.serverId) {
-                    // Check if already installed
                     if (server.installedSoftware.some(s => s.id === action.software.id)) return server;
-                    // Check constraints (disk space?)
-                    // For MVP allow installation.
                     return {
                         ...server,
                         installedSoftware: [...server.installedSoftware, action.software]
@@ -480,6 +472,22 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             resources: { ...state.resources, money: state.resources.money - action.software.price },
             racks: newRacks
         };
+    }
+    case "UNINSTALL_SOFTWARE": {
+        const newRacks = state.racks.map(rack => {
+            if (rack.type !== 'rack') return rack;
+            const newServers = rack.servers.map(server => {
+                if (server && server.id === action.serverId) {
+                    return {
+                        ...server,
+                        installedSoftware: server.installedSoftware.filter(s => s.id !== action.softwareId)
+                    };
+                }
+                return server;
+            });
+            return { ...rack, servers: newServers };
+        });
+        return { ...state, racks: newRacks };
     }
     case "ACCEPT_CONTRACT": {
         const contractIndex = state.contracts.findIndex(c => c.id === action.contractId);
@@ -513,7 +521,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Validate if parsed state has necessary structure to avoid crash
         if (parsed && parsed.resources) {
              dispatch({ type: "LOAD_GAME", state: parsed });
         }

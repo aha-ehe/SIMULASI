@@ -84,6 +84,7 @@ export interface Rack {
   power: number; // Power consumption (for AC)
   servers: (Server | null)[]; // Slot based, null = empty
   position: { x: number; y: number };
+  specs?: ComponentSpecs;
 }
 
 export interface Tile {

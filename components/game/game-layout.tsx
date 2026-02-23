@@ -29,7 +29,10 @@ export function GameLayout() {
                 <div className="bg-slate-800 p-4 rounded-lg shadow border border-slate-700">
                   <h3 className="text-sm text-slate-400 uppercase tracking-wider">Total Servers</h3>
                   <p className="text-3xl font-bold text-white mt-2">
-                    {state.racks.reduce((acc, r) => acc + r.servers.filter(s => s !== null).length, 0)}
+                    {state.racks.reduce((acc, r) => {
+                        if (r.type === 'rack') return acc + r.servers.filter(s => s !== null).length;
+                        return acc;
+                    }, 0)}
                   </p>
                 </div>
                  <div className="bg-slate-800 p-4 rounded-lg shadow border border-slate-700">
@@ -41,7 +44,7 @@ export function GameLayout() {
                 <div className="bg-slate-800 p-4 rounded-lg shadow border border-slate-700">
                   <h3 className="text-sm text-slate-400 uppercase tracking-wider">Racks Owned</h3>
                   <p className="text-3xl font-bold text-white mt-2">
-                    {state.racks.length}
+                    {state.racks.filter(r => r.type === 'rack').length}
                   </p>
                 </div>
               </div>

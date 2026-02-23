@@ -167,11 +167,36 @@ export function DataCenter() {
 function RackDetails({ rackId, onClose }: { rackId: string, onClose: () => void }) {
     const { state, dispatch } = useGame();
     const [installingSlot, setInstallingSlot] = useState<number | null>(null);
+    const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
 
     const rack = state.racks.find(r => r.id === rackId);
-    if (!rack) return null;
+
+    // We return null here if no rack, which is a conditional return but consistent (hooks run before)
+    // Actually hooks run before this if rack exists. If rack doesn't exist, hooks still run?
+    // Hooks must run in same order.
+    // Ideally, rackId should guarantee rack exists or parent handles it.
+    // Parent checks `selectedRackId &&`. So rack likely exists.
+    // But `find` returns undefined.
+    // If rack is missing, we shouldn't render this component or hooks will mismatch if we return early?
+    // No, if we return early, we are fine as long as we don't call hooks *after* return.
+    // But I was calling hooks *after* `if (!rack) return null`. That is fine.
+    // The issue was `if (selectedServer) return ...` which was inside the component body,
+    // and `ServerConsole` might have its own hooks (it does).
+    // Wait, `ServerConsole` is a separate component, so its hooks are isolated.
+    // But `RackDetails` returns early, so *its own* effects/hooks might be skipped?
+    // I am using `useState` at the top now.
+    // The problem was `const selectedServerId` state was declared *after* `if (!rack) return null`.
+    // And `if (selectedServer) return` means subsequent code in RackDetails is skipped.
+    // Does RackDetails have hooks after that return? No.
+    // But React creates hooks for the *returned component*? No.
+
+    // Fix: Move all hooks to top.
+
+    if (!rack) return null; // Logic check, technically creates conditional hook execution if rack becomes null later?
+    // Ideally parent handles null rack.
 
     const availableServers = state.inventory.servers;
+    const selectedServer = rack.servers.find(s => s && s.id === selectedServerId);
 
     const handleInstall = (server: ServerType) => {
         if (installingSlot !== null) {
@@ -184,10 +209,6 @@ function RackDetails({ rackId, onClose }: { rackId: string, onClose: () => void 
             setInstallingSlot(null);
         }
     }
-
-    const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
-
-    const selectedServer = rack.servers.find(s => s && s.id === selectedServerId);
 
     if (selectedServer) {
         return (
@@ -281,6 +302,8 @@ function RackDetails({ rackId, onClose }: { rackId: string, onClose: () => void 
     );
 }
 
+import { Software } from "@/lib/types";
+
 function ServerConsole({ server, onBack, onClose }: { server: ServerType, onBack: () => void, onClose: () => void }) {
     const { state, dispatch } = useGame();
     const [tab, setTab] = useState<'info' | 'software'>('info');
@@ -288,7 +311,7 @@ function ServerConsole({ server, onBack, onClose }: { server: ServerType, onBack
     const installedIds = server.installedSoftware.map(s => s.id);
     const availableSoftware = SOFTWARE_CATALOG;
 
-    const install = (sw: any) => {
+    const install = (sw: Software) => {
         if (state.resources.money >= sw.price) {
             dispatch({ type: 'INSTALL_SOFTWARE', serverId: server.id, software: sw });
         }
