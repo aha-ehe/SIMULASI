@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
-import { GameState, GameAction, Component, Server, Rack, Contract, Software, Staff, VpsClient } from "./types";
+import { GameState, GameAction, Component, Server, Rack, Contract, Software, Staff, VpsClient, GameEvent } from "./types";
 
 const GRID_ROWS = 6;
 const GRID_COLS = 6;
@@ -613,12 +613,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 const s = r.servers.find(srv => srv && srv.id === action.serverId);
                 if (s) {
                     serverCapacity = {
-                        cpu: s.stats.compute, // Approximation: compute points ~= cpu capacity? No, compute is perf score.
-                        // Real specs are in components.
-                        // Let's use components:
-                        // RAM capacity is in GB.
-                        // Storage capacity is in GB.
-                        // CPU cores?
                         cpu: s.components.cpu.specs.cores || 0,
                         ram: s.components.ram.specs.capacity || 0,
                         storage: s.components.storage.specs.capacity || 0
