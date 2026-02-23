@@ -104,7 +104,7 @@ function generateRandomEvent(time: number, reputation: number): GameEvent | null
     return null;
 }
 
-function gameReducer(state: GameState, action: GameAction): GameState {
+export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "START_GAME": {
         let money = 0;
@@ -211,14 +211,56 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           newEvents.push(randomEvent);
       }
 
-      // Filter expired events
-      const activeEvents = newEvents.filter(e => {
-          if (state.time > e.startTime + e.duration) return false; // expired
-          return true;
-      });
+      // Filter expired events & Check for recovery
+      const activeEvents: GameEvent[] = [];
+      let recoveredFromOutage = false;
 
-      const isDdosActive = activeEvents.some(e => e.type === 'ddos');
-      const isOutageActive = activeEvents.some(e => e.type === 'outage');
+      // Iterate through current events to find expiring ones
+      const eventsToKeep: GameEvent[] = [];
+      for (const e of newEvents) {
+          if (state.time > e.startTime + e.duration) {
+              // Event expired
+              if (e.type === 'outage') {
+                  recoveredFromOutage = true;
+              }
+          } else {
+              eventsToKeep.push(e);
+          }
+      }
+
+      // Update active events list (remove expired)
+      // We must mutate newEvents or just use eventsToKeep?
+      // The original code used activeEvents for logic but returned `events: activeEvents` at the end?
+      // Let's check the return statement.
+      // Ah, the return statement uses `events: activeEvents`.
+      // So `activeEvents` should hold the filtered list.
+      // And `newEvents` was just a temporary array.
+
+      // Ensure activeEvents contains the non-expired events so they are persisted
+      activeEvents.push(...eventsToKeep);
+
+      const isDdosActive = eventsToKeep.some(e => e.type === 'ddos');
+      const isOutageActive = eventsToKeep.some(e => e.type === 'outage');
+
+      // Recover from Outage: Restart servers
+      if (recoveredFromOutage) {
+          newRacks = newRacks.map(item => {
+              if (item.type === 'rack') {
+                  return {
+                      ...item,
+                      servers: item.servers.map(s => {
+                          if (!s) return null;
+                          // Restart servers that were off (assuming they tripped) and are healthy
+                          if (s.status === 'off' && s.health > 0) {
+                              return { ...s, status: 'active' };
+                          }
+                          return s;
+                      })
+                  };
+              }
+              return item;
+          });
+      }
 
       // Calculate active items and generation
       let generatorCapacity = 0;
