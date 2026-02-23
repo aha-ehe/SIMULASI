@@ -17,15 +17,16 @@ export interface Resources {
   reputation: number;
 }
 
-export type ComponentType = 'cpu' | 'ram' | 'storage' | 'psu' | 'rack' | 'cooling' | 'ups' | 'generator' | 'isp';
+export type ComponentType = 'cpu' | 'ram' | 'storage' | 'psu' | 'rack' | 'cooling' | 'ups' | 'generator' | 'isp' | 'gpu';
 
 export interface ComponentSpecs {
   power: number; // Wattage consumption
   heat: number;  // Heat generation
-  performance: number; // Generic score
+  performance: number; // Generic score / Hashrate for GPUs
   capacity?: number; // e.g., GB for RAM/Storage, U for Rack
   cores?: number; // For CPU
   speed?: number; // For CPU/RAM
+  hashrate?: number; // For GPU (MH/s)
 }
 
 export interface Component {
@@ -64,6 +65,7 @@ export interface Server {
     ram: Component;
     storage: Component;
     psu: Component;
+    gpu?: Component; // New GPU slot
   };
   status: 'active' | 'off' | 'maintenance';
   stats: {
@@ -119,18 +121,20 @@ export interface GameEvent {
     active: boolean;
 }
 
-export interface VpsClient {
+export interface VpsInstance {
     id: string;
     name: string;
-    tier: 'basic' | 'business' | 'enterprise';
-    revenue: number; // Income per tick
-    serverId: string; // Hosted on which server
-    resourceUsage: {
-        cpu: number;
-        ram: number;
-        storage: number;
+    os: string;
+    status: 'running' | 'stopped' | 'provisioning';
+    specs: {
+        vCpu: number;
+        ram: number; // GB
+        storage: number; // GB
     };
-    joinedAt: number;
+    price: number; // Hourly rate set by player
+    serverId: string; // Hosted on which physical server
+    client?: string; // Name of client renting it (if any)
+    createdAt: number;
 }
 
 export interface GameState {
@@ -144,7 +148,11 @@ export interface GameState {
   contracts: Contract[];
   staff: Staff[];
   events: GameEvent[];
-  clients: VpsClient[];
+  instances: VpsInstance[];
+  crypto: {
+      wallet: { [coin: string]: number }; // Coin balance
+      prices: { [coin: string]: number }; // Current prices
+  };
   time: number; // Game ticks
   gameStarted: boolean;
   companyName: string;
@@ -157,14 +165,17 @@ export type GameAction =
   | { type: 'START_GAME'; name: string; difficulty: 'easy' | 'normal' | 'hard'; logo: string; background: 'hacker' | 'heir' | 'engineer' }
   | { type: 'TICK' }
   | { type: 'BUY_COMPONENT'; component: Component }
-  | { type: 'ASSEMBLE_SERVER'; name: string; components: { cpu: Component; ram: Component; storage: Component; psu: Component } }
+  | { type: 'ASSEMBLE_SERVER'; name: string; components: { cpu: Component; ram: Component; storage: Component; psu: Component; gpu: Component | null } }
   | { type: 'PLACE_ITEM'; itemComponent: Component; position: { x: number; y: number } }
+  | { type: 'TOGGLE_MINING'; serverId: string; coin: string }
+  | { type: 'SELL_CRYPTO'; coin: string; amount: number }
   | { type: 'UNLOCK_TILE'; x: number; y: number }
   | { type: 'PLACE_SERVER'; serverId: string; rackId: string; slotIndex: number }
   | { type: 'INSTALL_SOFTWARE'; serverId: string; software: Software }
   | { type: 'UNINSTALL_SOFTWARE'; serverId: string; softwareId: string }
-  | { type: 'PROVISION_VPS'; serverId: string; tier: 'basic' | 'business' | 'enterprise' }
-  | { type: 'TERMINATE_VPS'; clientId: string }
+  | { type: 'CREATE_INSTANCE'; serverId: string; specs: { vCpu: number, ram: number, storage: number, os: string }; price: number }
+  | { type: 'DELETE_INSTANCE'; instanceId: string }
+  | { type: 'UPDATE_INSTANCE_STATUS'; instanceId: string; status: 'running' | 'stopped' }
   | { type: 'HIRE_STAFF'; role: 'technician' | 'manager' | 'security' }
   | { type: 'FIRE_STAFF'; staffId: string }
   | { type: 'ACCEPT_CONTRACT'; contractId: string }

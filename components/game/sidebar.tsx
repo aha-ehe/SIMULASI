@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, Server, Wrench, ShoppingCart, FileText, Users, Activity, Cloud, Zap, Globe, Cpu } from "lucide-react";
+import { LayoutDashboard, Server, Wrench, ShoppingCart, FileText, Users, Activity, Cloud, Zap, Globe, Cpu, Bitcoin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGame } from "@/lib/game-store";
 
@@ -16,6 +16,7 @@ export function Sidebar({ currentView, setView }: SidebarProps) {
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "racks", label: "Data Center", icon: Server },
     { id: "services", label: "Services", icon: Activity },
+    { id: "crypto", label: "Mining", icon: Bitcoin },
     { id: "contracts", label: "Contracts", icon: FileText },
     { id: "staff", label: "Staff", icon: Users },
     { id: "assembly", label: "Assembly", icon: Wrench },

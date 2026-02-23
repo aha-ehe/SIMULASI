@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
-import { GameState, GameAction, Component, Server, Rack, Contract, Software, Staff, VpsClient, GameEvent } from "./types";
+import { GameState, GameAction, Component, Server, Rack, Contract, Software, Staff, VpsInstance, GameEvent } from "./types";
 
 const GRID_ROWS = 6;
 const GRID_COLS = 6;
@@ -36,7 +36,11 @@ const initialState: GameState = {
   contracts: [],
   staff: [],
   events: [],
-  clients: [],
+  instances: [],
+  crypto: {
+      wallet: { 'BitCash': 0, 'Etherium': 0, 'DogeCoin': 0 },
+      prices: { 'BitCash': 500000, 'Etherium': 30000, 'DogeCoin': 2000 }
+  },
   time: 0,
   gameStarted: false,
   companyName: "My Data Center",
@@ -49,7 +53,8 @@ function generateRandomContractPerTick(time: number): Contract {
     const computeReq = 20 + Math.floor(Math.random() * 100);
     const bandwidthReq = 10 + Math.floor(Math.random() * 50); // New bandwidth requirement
     const duration = 120 + Math.floor(Math.random() * 120);
-    const rewardPerTick = Math.ceil(computeReq * 0.5 + bandwidthReq * 0.2);
+    // Increased reward multiplier significantly (3x - 5x boost from previous logic)
+    const rewardPerTick = Math.ceil((computeReq * 2.0) + (bandwidthReq * 1.5));
 
     return {
         id: `cnt-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -221,6 +226,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       let totalFirewallRating = 0;
 
       // Let's iterate grid items first
+      // Crypto Mining Logic
+      // Prices fluctuate
+      const newPrices = { ...state.crypto.prices };
+      if (state.time % 10 === 0) { // Every 10 ticks
+          Object.keys(newPrices).forEach(coin => {
+              const fluctuation = 1 + (Math.random() * 0.1 - 0.05); // +/- 5%
+              newPrices[coin] = Math.max(1, Math.floor(newPrices[coin] * fluctuation));
+          });
+      }
+
+      let minedCoins = { ...state.crypto.wallet };
+
       newRacks.forEach((item) => {
         if (item.type === 'cooling') {
             currentPower += item.power;
@@ -231,6 +248,26 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 const hasOS = server.installedSoftware.some(s => s.type === 'os');
                 currentPower += server.stats.power;
                 currentHeat += server.stats.heat;
+
+                // Mining Logic
+                // If server has GPU and 'Mining Software' (simulated by toggle for now or specialized software? Let's use simple toggle per server via action, stored in state?
+                // Or let's assume if it has a GPU, we can assign it to mine.
+                // For MVP: We need to store 'miningTarget' on server.
+                // Let's add 'miningTarget' to Server interface later or assume implicit 'BitCash' if GPU exists?
+                // Better: Update Server type to include `miningTarget?: string`.
+                // For now, let's skip explicit server property modification in this patch block and rely on a simpler global 'Mining Farm' mode or just manual assignment.
+                // Actually, let's hack: If server has a GPU, it auto-mines 'BitCash' for now to demonstrate.
+
+                if (server.components.gpu) {
+                    const hashrate = server.components.gpu.specs.performance || 0; // Using performance as hashrate
+                    // Difficulty factor
+                    const difficulty = 1000;
+                    const coin = 'BitCash';
+                    const mined = hashrate / difficulty;
+                    minedCoins[coin] += mined;
+
+                    // GPU adds extra heat/power? Already in specs.
+                }
 
                 // Firewall logic
                 server.installedSoftware.forEach(sw => {
@@ -348,8 +385,31 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const salaries = state.staff.reduce((acc, s) => acc + s.salary, 0);
       expenses += salaries;
 
-      // VPS Revenue
-      const vpsRevenue = state.clients.reduce((acc, c) => acc + c.revenue, 0);
+      // VPS Instance Logic
+      // Simulate client demand based on price.
+      // Cheap = high demand (instant fill). Expensive = low demand.
+      // For MVP: If price < 100/hour, 100% chance to be rented.
+
+      const newInstances = state.instances.map(inst => {
+          if (inst.status === 'running') {
+              // Try to find client if not active
+              if (!inst.client) {
+                  // Simplified market logic
+                  const maxPrice = inst.specs.vCpu * 50 + inst.specs.ram * 20 + inst.specs.storage * 2;
+                  if (inst.price <= maxPrice) {
+                      if (Math.random() > 0.1) {
+                          return { ...inst, client: `Client-${Math.floor(Math.random()*1000)}` };
+                      }
+                  }
+              }
+          }
+          return inst;
+      });
+
+      // VPS Revenue (only from rented instances)
+      const vpsRevenue = newInstances.reduce((acc, inst) => {
+          return (inst.client && inst.status === 'running') ? acc + inst.price : acc;
+      }, 0);
       revenue += vpsRevenue;
 
       return {
@@ -364,8 +424,30 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         racks: newRacks,
         contracts: newContracts,
         events: activeEvents,
+        instances: newInstances,
+        crypto: {
+            wallet: minedCoins,
+            prices: newPrices
+        },
         time: state.time + 1,
       };
+    }
+    case "SELL_CRYPTO": {
+        const currentPrice = state.crypto.prices[action.coin];
+        const amount = state.crypto.wallet[action.coin];
+        if (amount <= 0) return state;
+
+        return {
+            ...state,
+            resources: {
+                ...state.resources,
+                money: state.resources.money + (amount * currentPrice)
+            },
+            crypto: {
+                ...state.crypto,
+                wallet: { ...state.crypto.wallet, [action.coin]: 0 }
+            }
+        };
     }
     case "BUY_COMPONENT": {
       if (state.resources.money < action.component.price) return state;
@@ -422,40 +504,35 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             staff: state.staff.filter(s => s.id !== action.staffId)
         };
     }
-    case "BUY_COMPONENT": {
-      if (state.resources.money < action.component.price) return state;
-      const uniqueComponent = { ...action.component, id: `${action.component.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` };
-      return {
-        ...state,
-        resources: {
-          ...state.resources,
-          money: state.resources.money - action.component.price,
-        },
-        inventory: {
-          ...state.inventory,
-          components: [...state.inventory.components, uniqueComponent],
-        },
-      };
-    }
     case "ASSEMBLE_SERVER": {
-        const { cpu, ram, storage, psu } = action.components;
-        const totalPower = cpu.specs.power + ram.specs.power + storage.specs.power;
+        const { cpu, ram, storage, psu, gpu } = action.components;
+        let totalPower = cpu.specs.power + ram.specs.power + storage.specs.power;
+        let totalHeat = cpu.specs.heat + ram.specs.heat + storage.specs.heat + psu.specs.heat;
+        let totalPerf = cpu.specs.performance + ram.specs.performance;
+
+        if (gpu) {
+            totalPower += gpu.specs.power;
+            totalHeat += gpu.specs.heat;
+            // GPU adds to compute? Maybe slightly or separate stat. For now add to perf.
+            // But usually GPU compute is specific.
+        }
 
         const newServer: Server = {
             id: `srv-${Date.now()}`,
             name: action.name,
-            components: { cpu, ram, storage, psu },
+            components: { cpu, ram, storage, psu, gpu: gpu || undefined },
             status: "off",
             stats: {
                 power: totalPower,
-                heat: cpu.specs.heat + ram.specs.heat + storage.specs.heat + psu.specs.heat,
-                compute: cpu.specs.performance + ram.specs.performance,
+                heat: totalHeat,
+                compute: totalPerf,
             },
             installedSoftware: [],
             health: 100,
         };
 
         const usedIds = [cpu.id, ram.id, storage.id, psu.id];
+        if (gpu) usedIds.push(gpu.id);
         const newInventoryComponents = state.inventory.components.filter(c => !usedIds.includes(c.id));
 
         return {
@@ -584,28 +661,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         });
         return { ...state, racks: newRacks };
     }
-    case "PROVISION_VPS": {
-        const tiers = {
-            'basic': { cpu: 1, ram: 1, storage: 10, revenue: 10, name: "Basic VPS Client" },
-            'business': { cpu: 4, ram: 4, storage: 50, revenue: 50, name: "Business VPS Client" },
-            'enterprise': { cpu: 8, ram: 16, storage: 200, revenue: 200, name: "Enterprise VPS Client" }
-        };
-        const tierSpec = tiers[action.tier];
-
+    case "CREATE_INSTANCE": {
         // Find server
         let serverFound = false;
-        // Logic to verify capacity would be complex: we need to sum up usage of all clients on this server.
-        // For MVP, we'll just check if server exists and has OS.
-        // Ideally we should track 'available resources' on server.
-        // Let's assume infinite capacity per server for MVP or very loose check?
-        // No, let's implement basic check.
-
-        const currentUsage = state.clients.filter(c => c.serverId === action.serverId).reduce((acc, c) => ({
-            cpu: acc.cpu + c.resourceUsage.cpu,
-            ram: acc.ram + c.resourceUsage.ram,
-            storage: acc.storage + c.resourceUsage.storage
-        }), { cpu: 0, ram: 0, storage: 0 });
-
         let serverCapacity = { cpu: 0, ram: 0, storage: 0 };
 
         state.racks.forEach(r => {
@@ -624,33 +682,52 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
         if (!serverFound) return state;
 
-        if (currentUsage.cpu + tierSpec.cpu > serverCapacity.cpu ||
-            currentUsage.ram + tierSpec.ram > serverCapacity.ram ||
-            currentUsage.storage + tierSpec.storage > serverCapacity.storage) {
+        // Check Capacity
+        const currentUsage = state.instances.filter(i => i.serverId === action.serverId).reduce((acc, i) => ({
+            cpu: acc.cpu + i.specs.vCpu,
+            ram: acc.ram + i.specs.ram,
+            storage: acc.storage + i.specs.storage
+        }), { cpu: 0, ram: 0, storage: 0 });
+
+        if (currentUsage.cpu + action.specs.vCpu > serverCapacity.cpu ||
+            currentUsage.ram + action.specs.ram > serverCapacity.ram ||
+            currentUsage.storage + action.specs.storage > serverCapacity.storage) {
                 // Not enough resources
-                // In a real app we'd dispatch an error or handle UI validation.
                 return state;
         }
 
-        const newClient: VpsClient = {
-            id: `cli-${Date.now()}`,
-            name: `${tierSpec.name} #${state.clients.length + 1}`,
-            tier: action.tier,
-            revenue: tierSpec.revenue,
+        const newInstance: VpsInstance = {
+            id: `inst-${Date.now()}`,
+            name: `Instance-${Date.now().toString().substr(-4)}`,
+            os: action.specs.os,
+            status: 'provisioning',
+            specs: action.specs,
+            price: action.price,
             serverId: action.serverId,
-            resourceUsage: { cpu: tierSpec.cpu, ram: tierSpec.ram, storage: tierSpec.storage },
-            joinedAt: state.time
+            createdAt: state.time
         };
+
+        // Provisioning time? For now instant 'running' next tick.
+        // Let's set to running immediately for MVP UX.
+        newInstance.status = 'running';
 
         return {
             ...state,
-            clients: [...state.clients, newClient]
+            instances: [...state.instances, newInstance]
         };
     }
-    case "TERMINATE_VPS": {
+    case "DELETE_INSTANCE": {
         return {
             ...state,
-            clients: state.clients.filter(c => c.id !== action.clientId)
+            instances: state.instances.filter(i => i.id !== action.instanceId)
+        };
+    }
+    case "UPDATE_INSTANCE_STATUS": {
+        return {
+            ...state,
+            instances: state.instances.map(i =>
+                i.id === action.instanceId ? { ...i, status: action.status } : i
+            )
         };
     }
     case "ACCEPT_CONTRACT": {

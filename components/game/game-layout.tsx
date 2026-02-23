@@ -12,6 +12,7 @@ import { StaffManagement } from "./staff";
 import { EventsPanel } from "./events-panel";
 import { Services } from "./services";
 import { NewGameForm } from "./new-game-form";
+import { CryptoDashboard } from "./crypto-dashboard";
 
 export function GameLayout() {
   const [view, setView] = useState("dashboard");
@@ -58,6 +59,7 @@ export function GameLayout() {
           )}
           {view === "racks" && <DataCenter />}
           {view === "services" && <Services />}
+          {view === "crypto" && <CryptoDashboard />}
           {view === "contracts" && <Contracts />}
           {view === "staff" && <StaffManagement />}
           {view === "market" && <Marketplace />}

@@ -12,13 +12,15 @@ export function Assembly() {
   const [selectedRam, setSelectedRam] = useState<Component | null>(null);
   const [selectedStorage, setSelectedStorage] = useState<Component | null>(null);
   const [selectedPsu, setSelectedPsu] = useState<Component | null>(null);
+  const [selectedGpu, setSelectedGpu] = useState<Component | null>(null);
 
   const availableCpus = state.inventory.components.filter((c) => c.type === "cpu");
   const availableRams = state.inventory.components.filter((c) => c.type === "ram");
   const availableStorages = state.inventory.components.filter((c) => c.type === "storage");
   const availablePsus = state.inventory.components.filter((c) => c.type === "psu");
+  const availableGpus = state.inventory.components.filter((c) => c.type === "gpu");
 
-  const totalPower = (selectedCpu?.specs.power || 0) + (selectedRam?.specs.power || 0) + (selectedStorage?.specs.power || 0);
+  const totalPower = (selectedCpu?.specs.power || 0) + (selectedRam?.specs.power || 0) + (selectedStorage?.specs.power || 0) + (selectedGpu?.specs.power || 0);
   const psuCapacity = selectedPsu?.specs.power || 0; // Using power as capacity for PSU
   const isValid = selectedCpu && selectedRam && selectedStorage && selectedPsu && totalPower <= psuCapacity;
 
@@ -32,6 +34,7 @@ export function Assembly() {
           ram: selectedRam,
           storage: selectedStorage,
           psu: selectedPsu,
+          gpu: selectedGpu,
         },
       });
       // Reset
@@ -39,6 +42,7 @@ export function Assembly() {
       setSelectedRam(null);
       setSelectedStorage(null);
       setSelectedPsu(null);
+      setSelectedGpu(null);
       setName("Server " + (state.inventory.servers.length + 2));
     }
   };
@@ -64,6 +68,7 @@ export function Assembly() {
           <ComponentSelect label="CPU" icon={Cpu} items={availableCpus} selected={selectedCpu} onSelect={setSelectedCpu} />
           <ComponentSelect label="RAM" icon={Box} items={availableRams} selected={selectedRam} onSelect={setSelectedRam} />
           <ComponentSelect label="Storage" icon={Disc} items={availableStorages} selected={selectedStorage} onSelect={setSelectedStorage} />
+          <ComponentSelect label="GPU (Optional)" icon={Box} items={availableGpus} selected={selectedGpu} onSelect={setSelectedGpu} />
           <ComponentSelect label="PSU" icon={Power} items={availablePsus} selected={selectedPsu} onSelect={setSelectedPsu} />
         </div>
 

@@ -16,7 +16,7 @@ export function Marketplace() {
     }
   };
 
-  const categories = ["rack", "cooling", "cpu", "ram", "storage", "psu", "ups", "generator", "isp"];
+  const categories = ["rack", "cooling", "cpu", "ram", "storage", "psu", "gpu", "ups", "generator", "isp"];
   const [activeTab, setActiveTab] = useState("rack");
   const [search, setSearch] = useState("");
 
