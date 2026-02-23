@@ -2,7 +2,7 @@
 
 import { useGame } from "@/lib/game-store";
 import { useState } from "react";
-import { Cloud, Server, Play, Square, Trash2, Plus, Terminal } from "lucide-react";
+import { Cloud, Server, Play, Square, Trash2, Plus, Terminal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Services() {
