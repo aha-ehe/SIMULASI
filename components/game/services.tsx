@@ -115,7 +115,7 @@ export function Services() {
                               return (
                                 <button
                                     key={tier.id}
-                                    onClick={() => handleProvision(tier.id as any)}
+                                    onClick={() => handleProvision(tier.id as 'basic' | 'business' | 'enterprise')}
                                     disabled={!canAfford}
                                     className="w-full flex justify-between items-center bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed p-3 rounded border border-slate-700 transition-colors"
                                 >

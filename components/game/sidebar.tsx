@@ -1,7 +1,8 @@
 "use client";
 
-import { LayoutDashboard, Server, Wrench, ShoppingCart, FileText, Users } from "lucide-react";
+import { LayoutDashboard, Server, Wrench, ShoppingCart, FileText, Users, Activity, Cloud, Zap, Globe, Cpu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useGame } from "@/lib/game-store";
 
 interface SidebarProps {
   currentView: string;
@@ -9,6 +10,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentView, setView }: SidebarProps) {
+  const { state } = useGame();
+
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "racks", label: "Data Center", icon: Server },
@@ -19,15 +22,25 @@ export function Sidebar({ currentView, setView }: SidebarProps) {
     { id: "market", label: "Market", icon: ShoppingCart },
   ];
 
+  const getLogo = (logoName: string) => {
+      switch(logoName) {
+          case 'cloud': return <Cloud className="w-8 h-8 text-blue-500" />;
+          case 'zap': return <Zap className="w-8 h-8 text-yellow-500" />;
+          case 'globe': return <Globe className="w-8 h-8 text-green-500" />;
+          case 'cpu': return <Cpu className="w-8 h-8 text-purple-500" />;
+          default: return <Server className="w-8 h-8 text-blue-500" />;
+      }
+  };
+
   return (
     <>
       {/* Desktop Sidebar */}
       <div className="hidden md:flex w-64 bg-slate-950 border-r border-slate-800 flex-col h-full shrink-0">
         <div className="p-6 border-b border-slate-900 flex items-center gap-3">
-          <Server className="w-8 h-8 text-blue-500" />
+          {getLogo(state.logo)}
           <div>
-            <h1 className="text-xl font-bold text-slate-100 tracking-tight leading-none">DC Tycoon</h1>
-            <p className="text-xs text-slate-500 mt-1">Simulation Beta</p>
+            <h1 className="text-lg font-bold text-slate-100 tracking-tight leading-none line-clamp-1">{state.companyName}</h1>
+            <p className="text-xs text-slate-500 mt-1 capitalize">{state.difficulty} Mode</p>
           </div>
         </div>
 

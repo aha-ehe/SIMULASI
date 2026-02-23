@@ -21,11 +21,11 @@ const initialGrid = Array.from({ length: GRID_ROWS * GRID_COLS }, (_, i) => {
 
 const initialState: GameState = {
   resources: {
-    money: 5000000,
+    money: 0, // Set by difficulty
     electricity: { current: 0, max: 5000 }, // 5000 Watts limit initially
     heat: { current: 20, max: 80 }, // 20C ambient, 80C danger
     bandwidth: { current: 0, max: 1000 }, // 1Gbps
-    reputation: 100,
+    reputation: 0,
   },
   grid: initialGrid,
   racks: [],
@@ -38,6 +38,11 @@ const initialState: GameState = {
   events: [],
   clients: [],
   time: 0,
+  gameStarted: false,
+  companyName: "My Data Center",
+  difficulty: "normal",
+  logo: "server",
+  background: "engineer",
 };
 
 function generateRandomContractPerTick(time: number): Contract {
@@ -96,7 +101,54 @@ function generateRandomEvent(time: number, reputation: number): GameEvent | null
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
+    case "START_GAME": {
+        let money = 0;
+        let reputation = 0;
+        const inventoryComponents = [];
+
+        // Difficulty Money
+        switch (action.difficulty) {
+            case 'easy': money = 10000000; break;
+            case 'normal': money = 5000000; break;
+            case 'hard': money = 1000000; break;
+        }
+
+        // Background Bonuses
+        switch (action.background) {
+            case 'hacker': reputation += 50; break;
+            case 'heir': money += 2000000; break;
+            case 'engineer':
+                // Free Portable AC
+                inventoryComponents.push({
+                    id: "ac-basic-starter",
+                    name: "Portable AC Unit (Starter)",
+                    type: "cooling" as const,
+                    price: 2000000,
+                    specs: { power: 500, heat: 0, performance: 2000 }
+                });
+                break;
+        }
+
+        return {
+            ...state,
+            gameStarted: true,
+            companyName: action.name,
+            difficulty: action.difficulty,
+            logo: action.logo,
+            background: action.background,
+            resources: {
+                ...state.resources,
+                money,
+                reputation
+            },
+            inventory: {
+                ...state.inventory,
+                components: [...state.inventory.components, ...inventoryComponents]
+            }
+        };
+    }
     case "TICK": {
+      if (!state.gameStarted) return state;
       // 1. Calculate Active Load
       let currentPower = 0;
       let currentHeat = 0;

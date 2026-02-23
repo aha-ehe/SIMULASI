@@ -146,9 +146,15 @@ export interface GameState {
   events: GameEvent[];
   clients: VpsClient[];
   time: number; // Game ticks
+  gameStarted: boolean;
+  companyName: string;
+  difficulty: 'easy' | 'normal' | 'hard';
+  logo: string; // Icon name
+  background: 'hacker' | 'heir' | 'engineer';
 }
 
 export type GameAction =
+  | { type: 'START_GAME'; name: string; difficulty: 'easy' | 'normal' | 'hard'; logo: string; background: 'hacker' | 'heir' | 'engineer' }
   | { type: 'TICK' }
   | { type: 'BUY_COMPONENT'; component: Component }
   | { type: 'ASSEMBLE_SERVER'; name: string; components: { cpu: Component; ram: Component; storage: Component; psu: Component } }

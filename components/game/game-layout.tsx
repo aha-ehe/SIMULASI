@@ -11,10 +11,15 @@ import { Contracts } from "./contracts";
 import { StaffManagement } from "./staff";
 import { EventsPanel } from "./events-panel";
 import { Services } from "./services";
+import { NewGameForm } from "./new-game-form";
 
 export function GameLayout() {
   const [view, setView] = useState("dashboard");
   const { state } = useGame();
+
+  if (!state.gameStarted) {
+      return <NewGameForm />;
+  }
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
