@@ -12,6 +12,12 @@ export function DataCenter() {
   const [selectedItemToPlace, setSelectedItemToPlace] = useState<Component | null>(null);
   const [selectedRackId, setSelectedRackId] = useState<string | null>(null);
 
+  const handleRestartAll = () => {
+    if (confirm("Attempt to restart all servers? This may trip the breakers if power is insufficient.")) {
+        dispatch({ type: "RESTART_ALL_SERVERS" });
+    }
+  };
+
   const handleCellClick = (x: number, y: number) => {
     // Check if tile is unlocked
     const tile = state.grid.find(t => t.x === x && t.y === y);
@@ -52,9 +58,17 @@ export function DataCenter() {
   return (
     <div className="flex flex-col lg:flex-row h-full gap-6 relative">
       <div className="flex-1 bg-slate-900 rounded-lg p-6 border border-slate-800 flex flex-col items-center justify-center relative overflow-auto">
-         <h2 className="absolute top-6 left-6 text-2xl font-bold flex items-center gap-2 z-10">
-            <Server className="w-6 h-6" /> Data Center Floor
-         </h2>
+         <div className="absolute top-6 left-6 z-10 flex flex-col gap-2">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Server className="w-6 h-6" /> Data Center Floor
+            </h2>
+            <button
+                onClick={handleRestartAll}
+                className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1 rounded shadow border border-red-500 flex items-center gap-2 w-fit"
+            >
+                <Zap className="w-3 h-3" /> Emergency Restart All
+            </button>
+         </div>
 
          <div
             className="grid gap-2 bg-slate-950 p-4 md:p-8 rounded shadow-2xl relative min-w-fit mx-auto"
@@ -263,8 +277,20 @@ function RackDetails({ rackId, onClose }: { rackId: string, onClose: () => void 
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-[10px] text-slate-400">
-                                        {server.status === 'active' ? <span className="text-green-500">ON</span> : 'OFF'}
+                                    <div className="text-[10px] text-slate-400 flex items-center gap-2 justify-end">
+                                        {server.status === 'active' ? (
+                                            <span className="text-green-500 font-bold">ON</span>
+                                        ) : (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    dispatch({ type: "TOGGLE_SERVER", serverId: server.id });
+                                                }}
+                                                className="bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-[9px] text-white border border-slate-500"
+                                            >
+                                                TURN ON
+                                            </button>
+                                        )}
                                     </div>
                                     <div className="text-[10px] text-slate-500">{server.health}% HP</div>
                                 </div>
@@ -351,7 +377,26 @@ function ServerConsole({ server, onBack, onClose }: { server: ServerType, onBack
                             <div>Power: {server.stats.power}W</div>
                         </div>
                          <div className="bg-slate-900 p-3 rounded">
-                            <div className="text-xs text-slate-500 uppercase">Status</div>
+                            <div className="text-xs text-slate-500 uppercase flex justify-between items-center">
+                                <span>Status</span>
+                                <button
+                                    onClick={() => dispatch({ type: "TOGGLE_SERVER", serverId: server.id })}
+                                    className={cn(
+                                        "px-2 py-0.5 text-[10px] rounded font-bold uppercase",
+                                        server.status === 'active'
+                                            ? "bg-red-900/50 text-red-400 border border-red-800 hover:bg-red-900"
+                                            : "bg-green-900/50 text-green-400 border border-green-800 hover:bg-green-900"
+                                    )}
+                                >
+                                    {server.status === 'active' ? "Turn Off" : "Turn On"}
+                                </button>
+                            </div>
+                            <div className="flex justify-between mt-2">
+                                <span>Power State</span>
+                                <span className={server.status === 'active' ? "text-green-400" : "text-slate-500"}>
+                                    {server.status === 'active' ? "ONLINE" : "OFFLINE"}
+                                </span>
+                            </div>
                             <div className="flex justify-between">
                                 <span>Health</span>
                                 <span className={server.health < 50 ? "text-red-500" : "text-green-500"}>{server.health}%</span>

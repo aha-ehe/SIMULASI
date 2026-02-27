@@ -366,6 +366,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
                   return item;
               });
               currentPower = 0;
+
+              // Push Grid Overload Event to inform user
+              if (!state.events.some(e => e.type === 'overload')) {
+                  const overloadEvent: GameEvent = {
+                      id: `evt-overload-${Date.now()}`,
+                      type: 'overload' as any, // Using 'any' as quick fix or need to update types
+                      title: 'Grid Overload!',
+                      description: 'Power demand exceeded capacity. Emergency shutdown initiated.',
+                      severity: 'high',
+                      startTime: state.time,
+                      duration: 5, // Brief warning
+                      active: true
+                  };
+                  activeEvents.push(overloadEvent);
+              }
           }
       }
 
@@ -696,6 +711,35 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
                         ...server,
                         installedSoftware: server.installedSoftware.filter(s => s.id !== action.softwareId)
                     };
+                }
+                return server;
+            });
+            return { ...rack, servers: newServers };
+        });
+        return { ...state, racks: newRacks };
+    }
+    case "TOGGLE_SERVER": {
+        const newRacks = state.racks.map(rack => {
+            if (rack.type !== 'rack') return rack;
+            const newServers = rack.servers.map(server => {
+                if (server && server.id === action.serverId) {
+                    return {
+                        ...server,
+                        status: server.status === 'active' ? 'off' : 'active'
+                    } as Server;
+                }
+                return server;
+            });
+            return { ...rack, servers: newServers };
+        });
+        return { ...state, racks: newRacks };
+    }
+    case "RESTART_ALL_SERVERS": {
+        const newRacks = state.racks.map(rack => {
+            if (rack.type !== 'rack') return rack;
+            const newServers = rack.servers.map(server => {
+                if (server && server.health > 0) {
+                    return { ...server, status: 'active' } as Server;
                 }
                 return server;
             });
