@@ -112,7 +112,7 @@ export interface Contract {
 
 export interface GameEvent {
     id: string;
-    type: 'ddos' | 'outage' | 'market_crash';
+    type: 'ddos' | 'outage' | 'market_crash' | 'overload';
     title: string;
     description: string;
     severity: 'low' | 'medium' | 'high';
@@ -173,6 +173,8 @@ export type GameAction =
   | { type: 'PLACE_SERVER'; serverId: string; rackId: string; slotIndex: number }
   | { type: 'INSTALL_SOFTWARE'; serverId: string; software: Software }
   | { type: 'UNINSTALL_SOFTWARE'; serverId: string; softwareId: string }
+  | { type: 'TOGGLE_SERVER'; serverId: string }
+  | { type: 'RESTART_ALL_SERVERS' }
   | { type: 'CREATE_INSTANCE'; serverId: string; specs: { vCpu: number, ram: number, storage: number, os: string }; price: number }
   | { type: 'DELETE_INSTANCE'; instanceId: string }
   | { type: 'UPDATE_INSTANCE_STATUS'; instanceId: string; status: 'running' | 'stopped' }

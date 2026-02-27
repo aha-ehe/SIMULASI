@@ -371,7 +371,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               if (!state.events.some(e => e.type === 'overload')) {
                   const overloadEvent: GameEvent = {
                       id: `evt-overload-${Date.now()}`,
-                      type: 'overload' as any, // Using 'any' as quick fix or need to update types
+                      type: 'overload',
                       title: 'Grid Overload!',
                       description: 'Power demand exceeded capacity. Emergency shutdown initiated.',
                       severity: 'high',
