@@ -1,0 +1,332 @@
+[
+  {
+    "id": "gpu-0",
+    "name": "Nvidio Gen1 GT-100",
+    "type": "gpu",
+    "price": 3000000,
+    "specs": {
+      "power": 80,
+      "heat": 72,
+      "performance": 20
+    }
+  },
+  {
+    "id": "gpu-1",
+    "name": "AmyD Radeon Gen1 GT-200",
+    "type": "gpu",
+    "price": 3000000,
+    "specs": {
+      "power": 80,
+      "heat": 72,
+      "performance": 23
+    }
+  },
+  {
+    "id": "gpu-2",
+    "name": "Intal Arc Gen1 GT-300",
+    "type": "gpu",
+    "price": 3000000,
+    "specs": {
+      "power": 80,
+      "heat": 72,
+      "performance": 21
+    }
+  },
+  {
+    "id": "gpu-3",
+    "name": "Nvidio Gen1 GT-400",
+    "type": "gpu",
+    "price": 3000000,
+    "specs": {
+      "power": 80,
+      "heat": 72,
+      "performance": 23
+    }
+  },
+  {
+    "id": "gpu-4",
+    "name": "AmyD Radeon Gen1 GT-500",
+    "type": "gpu",
+    "price": 3000000,
+    "specs": {
+      "power": 80,
+      "heat": 72,
+      "performance": 22
+    }
+  },
+  {
+    "id": "gpu-5",
+    "name": "Intal Arc Gen1 GT-600",
+    "type": "gpu",
+    "price": 3000000,
+    "specs": {
+      "power": 80,
+      "heat": 72,
+      "performance": 20
+    }
+  },
+  {
+    "id": "gpu-6",
+    "name": "Nvidio Gen2 GT-700",
+    "type": "gpu",
+    "price": 9000000,
+    "specs": {
+      "power": 240,
+      "heat": 216,
+      "performance": 71
+    }
+  },
+  {
+    "id": "gpu-7",
+    "name": "AmyD Radeon Gen2 GT-800",
+    "type": "gpu",
+    "price": 9000000,
+    "specs": {
+      "power": 240,
+      "heat": 216,
+      "performance": 67
+    }
+  },
+  {
+    "id": "gpu-8",
+    "name": "Intal Arc Gen2 GT-900",
+    "type": "gpu",
+    "price": 9000000,
+    "specs": {
+      "power": 240,
+      "heat": 216,
+      "performance": 67
+    }
+  },
+  {
+    "id": "gpu-9",
+    "name": "Nvidio Gen2 GT-1000",
+    "type": "gpu",
+    "price": 9000000,
+    "specs": {
+      "power": 240,
+      "heat": 216,
+      "performance": 70
+    }
+  },
+  {
+    "id": "gpu-10",
+    "name": "AmyD Radeon Gen2 GT-1100",
+    "type": "gpu",
+    "price": 9000000,
+    "specs": {
+      "power": 240,
+      "heat": 216,
+      "performance": 65
+    }
+  },
+  {
+    "id": "gpu-11",
+    "name": "Intal Arc Gen2 GT-1200",
+    "type": "gpu",
+    "price": 9000000,
+    "specs": {
+      "power": 240,
+      "heat": 216,
+      "performance": 62
+    }
+  },
+  {
+    "id": "gpu-12",
+    "name": "Nvidio Gen3 GT-1300",
+    "type": "gpu",
+    "price": 24000000,
+    "specs": {
+      "power": 640,
+      "heat": 576,
+      "performance": 191
+    }
+  },
+  {
+    "id": "gpu-13",
+    "name": "AmyD Radeon Gen3 GT-1400",
+    "type": "gpu",
+    "price": 24000000,
+    "specs": {
+      "power": 640,
+      "heat": 576,
+      "performance": 177
+    }
+  },
+  {
+    "id": "gpu-14",
+    "name": "Intal Arc Gen3 GT-1500",
+    "type": "gpu",
+    "price": 24000000,
+    "specs": {
+      "power": 640,
+      "heat": 576,
+      "performance": 173
+    }
+  },
+  {
+    "id": "gpu-15",
+    "name": "Nvidio Gen3 GT-1600",
+    "type": "gpu",
+    "price": 24000000,
+    "specs": {
+      "power": 640,
+      "heat": 576,
+      "performance": 164
+    }
+  },
+  {
+    "id": "gpu-16",
+    "name": "AmyD Radeon Gen3 GT-1700",
+    "type": "gpu",
+    "price": 24000000,
+    "specs": {
+      "power": 640,
+      "heat": 576,
+      "performance": 190
+    }
+  },
+  {
+    "id": "gpu-17",
+    "name": "Intal Arc Gen3 GT-1800",
+    "type": "gpu",
+    "price": 24000000,
+    "specs": {
+      "power": 640,
+      "heat": 576,
+      "performance": 189
+    }
+  },
+  {
+    "id": "gpu-18",
+    "name": "Nvidio Gen4 GT-1900",
+    "type": "gpu",
+    "price": 60000000,
+    "specs": {
+      "power": 1600,
+      "heat": 1440,
+      "performance": 472
+    }
+  },
+  {
+    "id": "gpu-19",
+    "name": "AmyD Radeon Gen4 GT-2000",
+    "type": "gpu",
+    "price": 60000000,
+    "specs": {
+      "power": 1600,
+      "heat": 1440,
+      "performance": 448
+    }
+  },
+  {
+    "id": "gpu-20",
+    "name": "Intal Arc Gen4 GT-2100",
+    "type": "gpu",
+    "price": 60000000,
+    "specs": {
+      "power": 1600,
+      "heat": 1440,
+      "performance": 479
+    }
+  },
+  {
+    "id": "gpu-21",
+    "name": "Nvidio Gen4 GT-2200",
+    "type": "gpu",
+    "price": 60000000,
+    "specs": {
+      "power": 1600,
+      "heat": 1440,
+      "performance": 430
+    }
+  },
+  {
+    "id": "gpu-22",
+    "name": "AmyD Radeon Gen4 GT-2300",
+    "type": "gpu",
+    "price": 60000000,
+    "specs": {
+      "power": 1600,
+      "heat": 1440,
+      "performance": 463
+    }
+  },
+  {
+    "id": "gpu-23",
+    "name": "Intal Arc Gen4 GT-2400",
+    "type": "gpu",
+    "price": 60000000,
+    "specs": {
+      "power": 1600,
+      "heat": 1440,
+      "performance": 408
+    }
+  },
+  {
+    "id": "gpu-24",
+    "name": "Nvidio Gen5 GT-2500",
+    "type": "gpu",
+    "price": 150000000,
+    "specs": {
+      "power": 4000,
+      "heat": 3600,
+      "performance": 1137
+    }
+  },
+  {
+    "id": "gpu-25",
+    "name": "AmyD Radeon Gen5 GT-2600",
+    "type": "gpu",
+    "price": 150000000,
+    "specs": {
+      "power": 4000,
+      "heat": 3600,
+      "performance": 1156
+    }
+  },
+  {
+    "id": "gpu-26",
+    "name": "Intal Arc Gen5 GT-2700",
+    "type": "gpu",
+    "price": 150000000,
+    "specs": {
+      "power": 4000,
+      "heat": 3600,
+      "performance": 1099
+    }
+  },
+  {
+    "id": "gpu-27",
+    "name": "Nvidio Gen5 GT-2800",
+    "type": "gpu",
+    "price": 150000000,
+    "specs": {
+      "power": 4000,
+      "heat": 3600,
+      "performance": 1055
+    }
+  },
+  {
+    "id": "gpu-28",
+    "name": "AmyD Radeon Gen5 GT-2900",
+    "type": "gpu",
+    "price": 150000000,
+    "specs": {
+      "power": 4000,
+      "heat": 3600,
+      "performance": 1158
+    }
+  },
+  {
+    "id": "gpu-29",
+    "name": "Intal Arc Gen5 GT-3000",
+    "type": "gpu",
+    "price": 150000000,
+    "specs": {
+      "power": 4000,
+      "heat": 3600,
+      "performance": 1193
+    }
+  }
+]
